@@ -173,9 +173,11 @@ int PB_read_tag(FILE *in, PB_WireType *typep, int32_t *fieldp) {
         return bytes_read;
     }
 
+    printf("tag: %ld\n", tag);
+
     //type is first 3 bits
     *typep = (PB_WireType)(tag & 0x07);
-
+    
     //field is the rest of the bits
     *fieldp = (int32_t)(tag >> 3);
 
@@ -229,6 +231,7 @@ int PB_read_value(FILE *in, PB_WireType type, union value *valuep) {
             if((bytes_read = read_varint(in,&len)) < 1){
                 return bytes_read;
             }
+
 
             //ADD a check maybe for different length values, len may be more than 32 bits somehow ://
 
