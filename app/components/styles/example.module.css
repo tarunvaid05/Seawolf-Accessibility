@@ -1,0 +1,11 @@
+.mapContainer {
+    /* Basic styling for our map container */
+    border: 2px solid #333;
+    margin: 1rem;
+    width: 600px;  /* Adjust as needed */
+    height: 400px; /* Adjust as needed */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
