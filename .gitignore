@@ -32,7 +32,10 @@ dist/
 build/
 .cache/
 
+# vercel
+.vercel
 
 # misc
 .DS_Store
 *.pem
+
