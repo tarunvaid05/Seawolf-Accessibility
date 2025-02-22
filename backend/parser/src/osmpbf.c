@@ -105,7 +105,6 @@ OSM_Map *OSM_read_Map(FILE *in) {
     if(ferror(in)) return NULL;
     PB_Message header_msg;
 
-    uint64_t bytes_read = 0;
     int32_t header_len = process_len(in);
     if(header_len == 0){
         return NULL;
@@ -124,7 +123,6 @@ OSM_Map *OSM_read_Map(FILE *in) {
         return NULL;
     }
 
-    bytes_read += bytes;
 
     PB_Field *field;
     //read the header data
@@ -135,8 +133,6 @@ OSM_Map *OSM_read_Map(FILE *in) {
         else fprintf(stderr, "unexpected end of file ");
         return NULL;
     }
-
-    bytes_read += bytes;
 
     //read embedded message from HeaderBlock then get BBox
     PB_Message decompressed_msg;
@@ -383,8 +379,8 @@ OSM_Map *OSM_read_Map(FILE *in) {
                     while(!feof(keys) || !feof(values)){
                         int bytes_keys = 0;
                         int bytes_vals = 0;
-                        uint64_t key = 0;
-                        uint64_t val = 0;
+                        int64_t key = 0;
+                        int64_t val = 0;
 
                         bytes_keys = read_varint(keys, &key);
                         bytes_vals = read_varint(values, &val);

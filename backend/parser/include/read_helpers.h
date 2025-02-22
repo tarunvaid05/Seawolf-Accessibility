@@ -10,7 +10,7 @@
  * HELPER FUNCTIONS FOR READING FILE
 **/
 unsigned int process_len(FILE *in);
-int read_varint(FILE *in, uint64_t *val);
+int read_varint(FILE *in, int64_t *val);
 int create_sentinel(PB_Message *msg);
 int zig_zag_decode(int64_t *val);
 OSM_Node *Find_Node_by_id(OSM_Map *mp, OSM_Id id);
