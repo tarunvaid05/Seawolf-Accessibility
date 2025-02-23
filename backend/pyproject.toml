@@ -1,36 +1,31 @@
-[project]
+[tool.poetry]
 name = "hopperhacks25"
 version = "0.1.0"
 description = "Map for disabled people at stony that takes into account elevation + disability accesible routes"
 authors = [
     {name = "tarunvaid05",email = "tarunvaid05@gmail.com"}
 ]
-
-[tool.poetry]
-name = "hopperhacks25"
-version = "0.1.0"
-
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = [
-    "fastapi (>=0.115.8,<0.116.0)",
-    "uvicorn (>=0.34.0,<0.35.0)",
-    "googlemaps (>=4.10.0,<5.0.0)",
-    "python-dotenv (>=1.0.1,<2.0.0)",
-    "polyline (>=2.0.2,<3.0.0)",
-    "networkx (>=3.4.2,<4.0.0)",
-    "pandas (>=2.2.3,<3.0.0)",
-    "numpy (>=2.2.3,<3.0.0)",
-    "scipy (>=1.15.2,<2.0.0)",
-    "shapely (>=2.0.7,<3.0.0)",
-    "gmplot (>=1.4.1,<2.0.0)",
-    "folium (>=0.19.4,<0.20.0)",
-    "requests (>=2.32.3,<3.0.0)",
-    "pygeodesic (>=0.1.11,<0.2.0)",
-    "geopy (>=2.4.1,<3.0.0)",
-    "joblib (>=1.4.2,<2.0.0)",
-    "scikit-learn (>=1.6.1,<2.0.0)"
-]
+
+[tool.poetry.dependencies]
+fastapi = "^0.115.8"
+uvicorn = "^0.34.0"
+googlemaps = "^4.10.0"
+python-dotenv = "^1.0.1"
+polyline = "^2.0.2"
+networkx = "^3.4.2"
+pandas = "^2.2.3"
+numpy = "^2.2.3"
+scipy = "^1.15.2"
+shapely = "^2.0.7"
+gmplot = "^1.4.1"
+folium = "^0.19.4"
+requests = "^2.32.3"
+pygeodesic = "^0.1.11"
+geopy = "^2.4.1"
+joblib = "^1.4.2"
+scikit-learn = "^1.6.1"
 
 
 [build-system]
