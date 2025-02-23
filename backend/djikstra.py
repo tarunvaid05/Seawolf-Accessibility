@@ -2,9 +2,7 @@
 import json
 import heapq
 import math
-
-# A very large cost to penalize staircase segments
-HUGE_PENALTY = 1e6
+import route_cost
 
 def haversine(lat1, lon1, lat2, lon2):
     """
@@ -127,7 +125,8 @@ def dijkstra(graph, start, goal):
         if current_dist > dist[current]:
             continue
         for neighbor, weight, poly in graph[current]:
-            alt = current_dist + weight
+            alt = current_dist + weight + route_cost.compute_edge_cost(poly)
+            print(alt)
             if alt < dist[neighbor]:
                 dist[neighbor] = alt
                 previous[neighbor] = current
@@ -267,8 +266,8 @@ def main():
     nodes_list = load_nodes()
     # Specify origin and destination coordinates in degrees.
     # (Format: latitude, longitude)
-    origin = (40.914521, -73.131887)
-    destination = (40.904083, -73.107499)
+    origin = (40.914320,-73.121101)
+    destination = (40.915454,-73.119767)
     # Snap the origin and destination onto the graph.
     origin_node = snap_point(origin, graph, graph_nodes)
     destination_node = snap_point(destination, graph, graph_nodes)
