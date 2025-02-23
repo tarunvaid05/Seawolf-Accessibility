@@ -1,7 +1,6 @@
 import math
 import heapq
 import json
-import polyline
 from google_maps_util import get_elevation  # This function uses a polyline string to get elevation data
 from typing import Tuple
 import networkx as nx
@@ -12,7 +11,7 @@ HUGE_PENALTY = 1e6
 
 def convert_coord(coord) -> tuple:
     if isinstance(coord, dict):
-        return (coord['lat'], coord['lng'])
+        return (coord['lat'], coord['lon'])
     return coord
 
 """
