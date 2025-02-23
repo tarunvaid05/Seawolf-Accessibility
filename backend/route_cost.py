@@ -82,7 +82,6 @@ def compute_edge_cost(poly, staircase_threshold: float = 0.000001):
     # Build the list of coordinate tuples from poly.
     segment_coords = [(pt["lat"], pt["lon"]) for pt in poly]
 
-    # Compute the total distance along the segment.
     total_cost = 0.0
     with open("stairs.json", "r") as f:
         staircases = json.load(f)
