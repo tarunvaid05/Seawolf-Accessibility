@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Show Campus Polygon with Grid</title>
+    <style>
+      /* Map container takes full page for demonstration */
+      #map {
+        height: 100vh;
+        width: 100%;
+      }
+    </style>
+    <!-- Load the Google Maps JavaScript API -->
+    <script>
+      function loadGoogleMaps(apiKey) {
+        const script = document.createElement("script");
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry`;
+        script.async = true;
+        script.defer = true;
+
+        script.onload = function () {
+          console.log("Google Maps API loaded successfully");
+          initMap(); // Call initMap only when the script is loaded
+        };
+
+        script.onerror = function () {
+          console.error("Failed to load Google Maps API");
+        };
+
+        document.head.appendChild(script);
+      }
+
+      function fetchApiKey() {
+        fetch("/api/getMapsKey")
+          .then(response => {
+            if (!response.ok) {
+              throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.json();
+          })
+          .then(data => {
+            console.log("API key fetched successfully:", data.apiKey);
+            loadGoogleMaps(data.apiKey);
+          })
+          .catch(error => console.error("Error fetching API key:", error));
+      }
+
+      // Fetch API key and load Google Maps when the page loads
+      window.onload = fetchApiKey;
+
+      // The campus polygon coordinates (array of { lat, lng } objects)
+      const campusCoords = [
+        { lat: 40.925398, lng: -73.117393 },
+        { lat: 40.926034, lng: -73.124602 },
+        { lat: 40.912822, lng: -73.138967 },
+        { lat: 40.909763, lng: -73.136451 },
+        { lat: 40.908006, lng: -73.126973 },
+        { lat: 40.908452, lng: -73.124195 },
+        { lat: 40.906895, lng: -73.121700 },
+        { lat: 40.905286, lng: -73.122594 },
+        { lat: 40.902669, lng: -73.131498 },
+        { lat: 40.893097, lng: -73.127557 },
+        { lat: 40.893881, lng: -73.120148 },
+        { lat: 40.900724, lng: -73.122800 },
+        { lat: 40.904083, lng: -73.107499 },
+        { lat: 40.908453, lng: -73.107537 },
+        { lat: 40.914851, lng: -73.114094 },
+        { lat: 40.925398, lng: -73.117393 }
+      ];
+
+      function initMap() {
+        const mapCenter = { lat: 40.912, lng: -73.125 };
+
+        // Create the map
+        const map = new google.maps.Map(document.getElementById("map"), {
+          zoom: 14,
+          center: mapCenter,
+        });
+
+        // (Optional) Draw the campus polygon
+        const campusPolygon = new google.maps.Polygon({
+          paths: campusCoords,
+          strokeColor: "#FF0000",
+          strokeOpacity: 0.8,
+          strokeWeight: 2,
+          fillColor: "#FF0000",
+          fillOpacity: 0.35,
+        });
+        // Uncomment the line below to display the campus polygon
+        // campusPolygon.setMap(map);
+
+        // 1) Fetch the encoded polyline string from best_path_polyline.json
+        fetch("best_path_polyline.json")
+          .then(response => response.json())
+          .then(data => {
+            // data.encoded_polyline is the string from djikstra.py
+            const decodedPath = google.maps.geometry.encoding.decodePath(
+              data.encoded_polyline
+            );
+
+            // 2) Draw that decoded polyline in green
+            const dijkstraLine = new google.maps.Polyline({
+              path: decodedPath,
+              geodesic: true,
+              strokeColor: "#00FF00",
+              strokeOpacity: 1.0,
+              strokeWeight: 3.0,
+            });
+            dijkstraLine.setMap(map);
+          })
+          .catch(error => console.error("Error fetching the Dijkstra polyline:", error));
+
+        // Instead of using an encoded polyline, we now fetch and draw formatted data polylines.
+        fetchFormattedData(map);
+        fetchStepsData(map);
+        // Note: The stray call to polyline.setMap(map) has been removed as each polyline is set in its own callback
+        // ***** ADD TWO MARKERS *****
+        // Replace the coordinates below with your desired values.
+        const marker1 = new google.maps.Marker({
+          position: { lat: 40.914521, lng: -73.131887 },
+          map: map,
+          title: "Marker 1"
+        });
+
+        const marker2 = new google.maps.Marker({
+          position: { lat: 40.914174, lng: -73.124373 },
+          map: map,
+          title: "Marker 2"
+        });
+        // *****************************
+
+        // Optionally, uncomment the line below if you want to fetch walkable paths
+        // fetchWalkablePath(map);
+      }
+
+      // New function: fetch formatted data and draw its polylines
+      function fetchFormattedData(map) {
+        fetch("formatted_data.json")
+          .then(response => response.json())
+          .then(data => {
+            data.forEach(way => {
+              way.edges.forEach(edge => {
+                const path = edge.polyline.map(point => ({
+                  lat: point.lat / 1e9,
+                  lng: point.lon / 1e9,
+                }));
+
+                const polyline = new google.maps.Polyline({
+                  path: path,
+                  geodesic: true,
+                  strokeColor: "#800080", // Purple color for visibility
+                  strokeOpacity: 1.0,
+                  strokeWeight: 2.0,
+                });
+
+                polyline.setMap(map);
+              });
+            });
+          })
+          .catch(error => console.error("Error fetching formatted data:", error));
+      }
+
+      function fetchStepsData(map) {
+        fetch("stairs.json")
+          .then(response => response.json())
+          .then(data => {
+            data.forEach(way => {
+              const path = way.refs.map(ref => ({
+                lat: ref.lat / 1e9,
+                lng: ref.lon / 1e9,
+              }));
+
+              const stepsPath = new google.maps.Polyline({
+                path: path,
+                geodesic: true,
+                strokeColor: "#FF0000",
+                fillColor: "#FF0000",
+                strokeOpacity: 1.0,
+                strokeWeight: 2.0,
+              });
+
+              stepsPath.setMap(map);
+            });
+          })
+          .catch(error => console.error("Error fetching steps data:", error));
+      }
+
+      function fetchWalkablePath(map) {
+        fetch("ways_output.json")
+          .then(response => response.json())
+          .then(data => {
+            // Build a map of reference id counts across all ways
+            const refCounts = {};
+            data.forEach(way => {
+              way.refs.forEach(ref => {
+                refCounts[ref.id] = (refCounts[ref.id] || 0) + 1;
+              });
+            });
+
+            // Filter ways to only include those with at least one adjacent segment
+            const filteredWays = data.filter(way =>
+              way.refs.some(ref => refCounts[ref.id] > 1)
+            );
+
+            // Draw each filtered way as a polyline
+            filteredWays.forEach(way => {
+              const path = way.refs.map(ref => ({
+                lat: ref.lat / 1e9,
+                lng: ref.lon / 1e9,
+              }));
+
+              const polyline = new google.maps.Polyline({
+                path: path,
+                geodesic: true,
+                strokeColor: "blue",
+                fillColor: "blue",
+                strokeOpacity: 1.0,
+                strokeWeight: 1.0,
+              });
+
+              polyline.setMap(map);
+            });
+          })
+          .catch(error => console.error("Error fetching walkable path data:", error));
+      }
+    </script>
+  </head>
+  <body>
+    <div id="map"></div>
+  </body>
+</html>
