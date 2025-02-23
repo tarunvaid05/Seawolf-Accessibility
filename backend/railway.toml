@@ -3,8 +3,8 @@ $schema = "https://railway.com/railway.schema.json"
 [build]
 builder = "NIXPACKS"
 buildCommand = """
-curl -sSL https://install.python-poetry.org | python3 -
-export PATH="$HOME/.local/bin:$PATH"
+curl -sSL https://install.python-poetry.org | python3 - && \
+export PATH="$HOME/.local/bin:$PATH" && \
 poetry install --no-root
 """
 
