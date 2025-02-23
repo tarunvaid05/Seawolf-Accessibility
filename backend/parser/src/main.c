@@ -19,7 +19,8 @@ int main(int argc, char **argv)
         printf("Error: Invalid file format\n");
         return 1;
     }
-    printf("Nodes: %d\n", OSM_Map_get_num_nodes(mp));
-    printf("Ways: %d\n", OSM_Map_get_num_ways(mp));
+    FILE *json_file = fopen("ways_output.json", "w");
+    if (OSM_Way_steps_to_JSON(json_file,mp)) {fprintf(stderr, "error in steps to json "); return 1;};
+
     return 0;
 }

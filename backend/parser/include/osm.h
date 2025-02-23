@@ -56,6 +56,8 @@
  OSM_Id OSM_Way_get_ref(OSM_Way *wp, int index);
  char *OSM_Way_get_key(OSM_Way *wp, int index);
  char *OSM_Way_get_value(OSM_Way *wp, int index);
+ int way_is_steps(OSM_Way *wp);
+ int OSM_Way_steps_to_JSON(FILE *fp, OSM_Map *mp);
  
  #endif
  
