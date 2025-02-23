@@ -75,5 +75,21 @@ def segment_overlaps_any_staircase(segment_coords: list, staircases: list, thres
             return True
     return False
 
+def compute_edge_cost(poly, staircase_threshold: float = 0.000001):
+    if not poly:
+        return 0.0
 
+    # Build the list of coordinate tuples from poly.
+    segment_coords = [(pt["lat"], pt["lon"]) for pt in poly]
+
+    # Compute the total distance along the segment.
+    total_cost = 0.0
+    with open("stairs.json", "r") as f:
+        staircases = json.load(f)
+    # If any point in the segment is within staircase_threshold (meters) of any staircase point,
+    # add a huge penalty.
+    if segment_overlaps_any_staircase(segment_coords, staircases, threshold=staircase_threshold):
+        total_cost += HUGE_PENALTY
+
+    return total_cost
 
