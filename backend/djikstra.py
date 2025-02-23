@@ -3,12 +3,54 @@ import json
 import heapq
 import math
 
+def haversine(lat1, lon1, lat2, lon2):
+    """
+    Compute the haversine distance (in meters) between two points given in degrees.
+    """
+    R = 6371000  # Earth's radius in meters
+    phi1 = math.radians(lat1)
+    phi2 = math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dlambda = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+    return R * c
+
+def load_nodes():
+    """
+    Loads nodes.json, which contains a list of all unique nodes.
+    Each node is expected to have an "id", "lat", and "lon" (lat/lon are stored as integers, e.g. 40915681500).
+    """
+    with open("nodes.json", "r") as f:
+        nodes_list = json.load(f)
+    return nodes_list
+
+def find_nearest_node(lat, lon, nodes_list, valid_ids=None):
+    """
+    Given a latitude and longitude (in degrees) and a list of nodes (from nodes.json),
+    return the node (a dict) that is closest to the given coordinates.
+    If valid_ids is provided (a set), only nodes whose id is in valid_ids are considered.
+    """
+    best_node = None
+    best_distance = float('inf')
+    for node in nodes_list:
+        if valid_ids is not None and node["id"] not in valid_ids:
+            continue
+        node_lat = node["lat"] / 1e9
+        node_lon = node["lon"] / 1e9
+        d = haversine(lat, lon, node_lat, node_lon)
+        if d < best_distance:
+            best_distance = d
+            best_node = node
+    return best_node
+
 def load_graph():
     """
     Loads formatted_data.json and builds an undirected graph.
-    Each junction vertex (identified by its id) is a node.
+    Each junction vertex (identified by its "id") is a node.
     Each edge from a segment becomes a bidirectional edge with a weight (distance)
     and carries its polyline (the list of vertices between the junctions).
+    Note: For the reverse direction the polyline is reversed.
     """
     with open("formatted_data.json", "r") as f:
         segments = json.load(f)
@@ -39,11 +81,11 @@ def load_graph():
 def dijkstra(graph, start, goal):
     """
     Standard Dijkstra algorithm.
-    Returns a tuple: (total distance, list of node ids forming the path, list of polyline edges used).
+    Returns a tuple: (total_distance, list_of_node_ids, list_of_polyline_segments_used).
     """
     dist = {node: float('inf') for node in graph}
     previous = {node: None for node in graph}
-    edge_used = {node: None for node in graph}  # store the polyline for the edge that led to the node
+    edge_used = {node: None for node in graph}  # stores the polyline for the edge that led to the node
     dist[start] = 0
 
     queue = [(0, start)]
@@ -91,7 +133,7 @@ def combine_polylines(polylines):
 def encode_polyline(points):
     """
     Encodes a polyline using the Google Encoded Polyline Algorithm.
-    Points is a list of dicts with "lat" and "lon" (in degrees).
+    `points` is a list of dicts with "lat" and "lon" (in degrees).
     """
     def encode_coordinate(coordinate):
         coordinate = int(round(coordinate * 1e5))
@@ -120,15 +162,36 @@ def encode_polyline(points):
     return result
 
 def main():
-    graph, nodes = load_graph()
+    # Load the graph from formatted_data.json
+    graph, graph_nodes = load_graph()
     if not graph:
         print("Graph is empty.")
         return
 
-    all_nodes = list(graph.keys())
-    start = all_nodes[0]
-    goal = all_nodes[-1]
-    print(f"Running Dijkstra from node {start} to node {goal}")
+    # Load the canonical nodes list from nodes.json
+    nodes_list = load_nodes()
+    # Only consider nodes that appear in our graph
+    valid_ids = set(graph.keys())
+
+    # Specify the origin and destination coordinates in degrees.
+    # (Format: latitude, longitude)
+    # You can change these values as needed.
+    origin_lat, origin_lon = 40.9146917, -73.1225788
+    destination_lat, destination_lon = 40.9172855, -73.1210774
+
+    # Find the nearest nodes to the provided coordinates.
+    origin_node = find_nearest_node(origin_lat, origin_lon, nodes_list, valid_ids)
+    destination_node = find_nearest_node(destination_lat, destination_lon, nodes_list, valid_ids)
+
+    if origin_node is None or destination_node is None:
+        print("Could not find a suitable origin or destination node.")
+        return
+
+    start = origin_node["id"]
+    goal = destination_node["id"]
+
+    print(f"Using origin node {start} (closest to {origin_lat}, {origin_lon})")
+    print(f"Using destination node {goal} (closest to {destination_lat}, {destination_lon})")
 
     total_distance, path, edges_in_path = dijkstra(graph, start, goal)
     if path is None:
@@ -136,18 +199,18 @@ def main():
         return
 
     print(f"Total distance: {total_distance:.2f} meters")
-    
+
     full_polyline = combine_polylines(edges_in_path)
-    
+
     print("Polyline for the best path (lat, lon):")
     # Convert the combined polyline to a list of points with lat/lon in degrees.
     points = [{"lat": point["lat"] / 1e9, "lon": point["lon"] / 1e9} for point in full_polyline]
     encoded = encode_polyline(points)
 
-    # 1) Print to console (optional)
+    # Print encoded polyline to the console.
     print(encoded)
 
-    # 2) ALSO write to a small JSON file:
+    # Write the encoded polyline to best_path_polyline.json.
     with open("best_path_polyline.json", "w") as f:
         json.dump({"encoded_polyline": encoded}, f)
 
