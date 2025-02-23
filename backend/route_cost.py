@@ -1,4 +1,14 @@
 import math
+import heapq
+import json
+import polyline
+from google_maps_util import get_elevation  # This function uses a polyline string to get elevation data
+from typing import Tuple
+import networkx as nx
+from typing import List
+
+# A very large cost to penalize staircase segments
+HUGE_PENALTY = 1e6
 
 def convert_coord(coord) -> tuple:
     if isinstance(coord, dict):
@@ -40,12 +50,13 @@ def haversine_distance(coord1: tuple, coord2: tuple) -> float:
     Returns:
         True if any point in segment_coords is within threshold meters of any staircase point.
     """
-def segment_overlaps_staircase(segment_coords: list, staircase_coords: list, threshold: float = 100.0) -> bool:
+def segment_overlaps_staircase(segment_coords: list, staircase_coords: list, threshold: float = 0.00001) -> bool:
     for coord in segment_coords:
         for stair_pt in staircase_coords:
             if haversine_distance(coord, stair_pt) <= threshold:
                 return True
     return False
+
 
 """
     Checks if a segment overlaps with any staircase in the provided list.
@@ -63,3 +74,6 @@ def segment_overlaps_any_staircase(segment_coords: list, staircases: list, thres
         if segment_overlaps_staircase(segment_coords, staircase, threshold):
             return True
     return False
+
+
+

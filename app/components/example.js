@@ -1,10 +1,12 @@
+//// filepath: /Users/tarun/CS/Projects/HopperHacks25/app/components/example.js
 "use client";
 
-import React, { useRef, useState, useCallback } from 'react'; 
+import React, { useRef, useState, useCallback } from 'react';
 import {
   LoadScript,
   GoogleMap,
   Marker,
+  Polyline, // import Polyline
   DirectionsRenderer
 } from '@react-google-maps/api';
 import styles from './styles/example.module.css';
@@ -106,8 +108,10 @@ export default function Example() {
   
   // For displaying markers
   const [selectedPoints, setSelectedPoints] = useState({ start: null, end: null });
-  // For storing directions from the backend
+  // For storing directions from the backend (if needed)
   const [directionsResponse, setDirectionsResponse] = useState(null);
+  // For storing the decoded polyline route coordinates.
+  const [routePath, setRoutePath] = useState([]);
 
   const onMapLoad = useCallback((map) => {
     mapRef.current = map;
@@ -129,7 +133,6 @@ export default function Example() {
   const handleMapClick = (e) => {
     const clickedCoord = { lat: e.latLng.lat(), lng: e.latLng.lng() };
     const coordStr = `${clickedCoord.lat.toFixed(6)},${clickedCoord.lng.toFixed(6)}`;
-    // If an input is active, update that coordinate.
     if (activeField === "start") {
       setStartLocation(coordStr);
       setSelectedPoints(prev => ({ ...prev, start: clickedCoord }));
@@ -137,7 +140,6 @@ export default function Example() {
       setEndLocation(coordStr);
       setSelectedPoints(prev => ({ ...prev, end: clickedCoord }));
     } else {
-      // If no input is active, default to first setting start then end.
       if (!selectedPoints.start) {
         setStartLocation(coordStr);
         setSelectedPoints({ start: clickedCoord, end: null });
@@ -151,21 +153,65 @@ export default function Example() {
         setEndLocation("");
       }
     }
-    // Clear any directions when coordinates change
+    // Clear any directions or polyline on coordinate change.
     setDirectionsResponse(null);
+    setRoutePath([]);
   };
 
-  // Calls the backend API (routingBeta.py) for walking directions.
+  // Modify calculateRoute to decode the overview_polyline and set it as routePath.
   const calculateRoute = async () => {
     if (!startLocation || !endLocation) return;
     try {
-      const response = await fetch(`http://localhost:8000/api/directions?start=${encodeURIComponent(startLocation)}&end=${encodeURIComponent(endLocation)}`);
+      const response = await fetch(
+        `http://localhost:8000/api/directions?start=${encodeURIComponent(startLocation)}&end=${encodeURIComponent(endLocation)}`
+      );
       if (!response.ok) {
         console.error("Failed to fetch directions", await response.text());
         return;
       }
-      const data = await response.json();
+      let data = await response.json();
+      // Wrap data in a routes array if not already.
+      if (!data.routes || !Array.isArray(data.routes)) {
+        data = { routes: [data] };
+      }
+      // Convert bounds if they exist:
+      if (
+        data.routes[0] &&
+        data.routes[0].bounds &&
+        data.routes[0].bounds.northeast &&
+        data.routes[0].bounds.southwest
+      ) {
+        const { northeast, southwest } = data.routes[0].bounds;
+        data.routes[0].bounds = {
+          north: northeast.lat,
+          east: northeast.lng,
+          south: southwest.lat,
+          west: southwest.lng,
+        };
+      }
+      // Ensure request property exists.
+      if (!data.request) {
+        data.request = {
+          travelMode: 'WALKING',
+          origin: startLocation,
+          destination: endLocation
+        };
+      }
+      if (!data.geocoded_waypoints) {
+        data.geocoded_waypoints = [];
+      }
+      console.log("Formatted directions object:", data);
+      // Optionally set the directions response if you still want to use DirectionsRenderer.
       setDirectionsResponse(data);
+
+      // Use the overview_polyline from the first route to draw the path.
+      if (data.routes[0].overview_polyline && data.routes[0].overview_polyline.points) {
+        // Decode the polyline using the Google Maps geometry library.
+        const decodedPath = window.google.maps.geometry.encoding.decodePath(data.routes[0].overview_polyline.points);
+        setRoutePath(decodedPath);
+      } else {
+        console.error("No overview_polyline found in route data.");
+      }
     } catch (err) {
       console.error("Error fetching directions:", err);
     }
@@ -178,7 +224,6 @@ export default function Example() {
         Your browser does not support the video tag.
       </video>
       <div className={styles.mapContainer}>
-        {/* Directions input bar placed on top of map */}
         <div className={styles.directionsInput}>
           <input
             type="text"
@@ -196,7 +241,7 @@ export default function Example() {
           />
           <button onClick={calculateRoute}>Get Directions</button>
         </div>
-        <LoadScript googleMapsApiKey={process.env.NEXT_PUBLIC_MAPS_KEY}>
+        <LoadScript googleMapsApiKey={process.env.NEXT_PUBLIC_MAPS_KEY} libraries={["geometry"]}>
           <GoogleMap
             onLoad={onMapLoad}
             onClick={handleMapClick}
@@ -208,16 +253,25 @@ export default function Example() {
               styles: isDarkMode ? darkMapStyles : []
             }}
           >
-            {/* Base center marker */}
             <Marker position={center} />
-            {/* Markers for start/end points from input */}
             {selectedPoints.start && (
               <Marker position={selectedPoints.start} label="A" />
             )}
             {selectedPoints.end && (
               <Marker position={selectedPoints.end} label="B" />
             )}
-            {/* Display route from the backend when available */}
+            {/* Render the polyline if available */}
+            {routePath.length > 0 && (
+              <Polyline
+                path={routePath}
+                options={{
+                  strokeColor: '#FF0000',
+                  strokeOpacity: 0.8,
+                  strokeWeight: 4,
+                }}
+              />
+            )}
+            {/* Optionally render the DirectionsRenderer if needed */}
             {directionsResponse && (
               <DirectionsRenderer
                 options={{
@@ -225,11 +279,9 @@ export default function Example() {
                 }}
               />
             )}
-            {/* Custom Toggle Button for Satellite/Map */}
             <div className={styles.customControl} onClick={toggleMapType}>
               {mapType === "roadmap" ? "Satellite View" : "Map View"}
             </div>
-            {/* Light/Dark Mode Toggle Button */}
             <div
               className={`${styles.lightDarkToggle} ${isDarkMode ? styles.darkMode : ""}`}
               onClick={toggleDarkMode}

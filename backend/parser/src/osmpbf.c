@@ -91,6 +91,33 @@ typedef struct String_Table{
 int32_t len_of_string_tables = 0;
 String_Table *global_table;
 
+typedef struct {
+    int64_t lat;
+    int64_t lon;
+} Point;
+
+// Construct the campus polygon using your provided campusCoords.
+// The values are converted from degrees to nanodegrees by multiplying by 1e9.
+static Point campusPolygon[] = {
+    { (int64_t)(40.925398 * 1e9), (int64_t)(-73.117393 * 1e9) },
+    { (int64_t)(40.926034 * 1e9), (int64_t)(-73.124602 * 1e9) },
+    { (int64_t)(40.912822 * 1e9), (int64_t)(-73.138967 * 1e9) },
+    { (int64_t)(40.909763 * 1e9), (int64_t)(-73.136451 * 1e9) },
+    { (int64_t)(40.908006 * 1e9), (int64_t)(-73.126973 * 1e9) },
+    { (int64_t)(40.908452 * 1e9), (int64_t)(-73.124195 * 1e9) },
+    { (int64_t)(40.906895 * 1e9), (int64_t)(-73.121700 * 1e9) },
+    { (int64_t)(40.905286 * 1e9), (int64_t)(-73.122594 * 1e9) },
+    { (int64_t)(40.902669 * 1e9), (int64_t)(-73.131498 * 1e9) },
+    { (int64_t)(40.893097 * 1e9), (int64_t)(-73.127557 * 1e9) },
+    { (int64_t)(40.893881 * 1e9), (int64_t)(-73.120148 * 1e9) },
+    { (int64_t)(40.900724 * 1e9), (int64_t)(-73.122800 * 1e9) },
+    { (int64_t)(40.904083 * 1e9), (int64_t)(-73.107499 * 1e9) },
+    { (int64_t)(40.908453 * 1e9), (int64_t)(-73.107537 * 1e9) },
+    { (int64_t)(40.914851 * 1e9), (int64_t)(-73.114094 * 1e9) },
+    { (int64_t)(40.925398 * 1e9), (int64_t)(-73.117393 * 1e9) }
+};
+#define CAMPUS_POLYGON_SIZE (sizeof(campusPolygon)/sizeof(campusPolygon[0]))
+
 
 /**
  * @brief Read map data in OSM PBF format from the specified input stream,
@@ -756,14 +783,41 @@ int64_t OSM_BBox_get_min_lat(OSM_BBox *bbp) {
     return bbp->min_lat;
 }
 
-int way_is_steps(OSM_Way *wp) {
+int way_is_steps(OSM_Map *mp, OSM_Way *wp) {
+    // First, iterate through each referenced node and check that it lies inside the campus.
+    int num_refs = OSM_Way_get_num_refs(wp);
+    for (int i = 0; i < num_refs; i++){
+        OSM_Id ref_id = OSM_Way_get_ref(wp, i);
+        OSM_Node *nd = Find_Node_by_id(mp, ref_id); // Adjust if you use a different variable
+        if(nd == NULL || !point_in_campus(nd->lat, nd->lon)) {
+            // If any node is missing or outside the campus polygon, reject this way.
+            return 0;
+        }
+    }
 
+    // Now do the original key/value test.
     int num_keys = OSM_Way_get_num_keys(wp);
+    int status = 0;
     for(int i = 0; i < num_keys; i++){
         char *key = OSM_Way_get_key(wp, i);
         char *value = OSM_Way_get_value(wp, i);
-        if(strcmp(key, "highway") == 0 && strcmp(value, "steps") == 0) return 1;
+        // Use your criteria for walkable ways (footway/highway not equal to certain types)
+        if ((strcmp(key, "footway") == 0 || strcmp(key, "highway") == 0) &&
+            (strcmp(value, "trunk") != 0 &&
+             strcmp(value, "motorway") != 0 &&
+             strcmp(value, "secondary") != 0 &&
+             strcmp(value, "road") != 0 &&
+             strcmp(value, "primary") != 0 &&
+             strcmp(value, "tertiary") != 0 &&
+             strcmp(value, "unclassified") != 0))
+        { 
+            status++;
+        }
+        else if(strcmp(key, "surface") == 0 && strcmp(value, "ground") == 0) {
+            return 0;
+        }
     }
+    if (status) return 1;
     return 0;
 }
 
@@ -776,7 +830,7 @@ int OSM_Way_steps_to_JSON(FILE *fp, OSM_Map *mp){
     int printed_something = 0;
     for(int i = 0; i < num_ways; i++)
     {
-        if(way_is_steps(way)){
+        if(way_is_steps(mp, way)){
             // if not the first item, print a comma to keep valid JSON syntax
             if(printed_something) fprintf(fp,",\n");
             printed_something = 1;
@@ -803,6 +857,62 @@ int OSM_Way_steps_to_JSON(FILE *fp, OSM_Map *mp){
             }
             fprintf(fp, "]\n\t}");
         }
+        way = way->next;
+    }
+    fprintf(fp, "\n]\n");
+    return 0;
+}
+// Ray-casting algorithm to decide if point p is inside the polygon.
+// Note: We treat latitude as y and longitude as x.
+int point_in_campus(int64_t lat, int64_t lon) {
+    Point p = { lat, lon };
+    int c = 0;
+    int i, j;
+    for(i = 0, j = CAMPUS_POLYGON_SIZE - 1; i < CAMPUS_POLYGON_SIZE; j = i++){
+        if (((campusPolygon[i].lat > p.lat) != (campusPolygon[j].lat > p.lat)) &&
+            (p.lon < (campusPolygon[j].lon - campusPolygon[i].lon) *
+                     (p.lat - campusPolygon[i].lat) / (campusPolygon[j].lat - campusPolygon[i].lat)
+                     + campusPolygon[i].lon))
+        {
+            c = !c;
+        }
+    }
+    return c;
+}
+int OSM_Way_all_ways_to_JSON(FILE *fp, OSM_Map *mp){
+    if(!mp) {fprintf(stderr, "not a map "); return -1;}
+    int num_ways = OSM_Map_get_num_ways(mp) - 1;
+    if(num_ways == 0) {fprintf(stderr, "no ways to be selected from "); return -1;}
+    fprintf(fp,"[\n");
+    OSM_Way *way= OSM_Map_get_Way(mp, 0)->next;
+    int printed_something = 0;
+    for(int i = 0; i < num_ways; i++)
+    {
+        // if not the first item, print a comma to keep valid JSON syntax
+        if(printed_something) fprintf(fp,",\n");
+        printed_something = 1;
+
+        // Printing the way_id
+        fprintf(fp, "\t{\n");
+        fprintf(fp, "\t\t\"way_id\": %ld,\n", way->id);
+        fprintf(fp,"\t\t\"refs\": [");
+
+        int num_refs = OSM_Way_get_num_refs(way);
+        for(int j = 0; j < num_refs; j++){
+            OSM_Id ref_id = OSM_Way_get_ref(way, j);
+            OSM_Node *nd = Find_Node_by_id(mp, ref_id);
+
+            // print comma between references
+            if(j > 0) fprintf(fp,", ");
+
+            if(nd){
+                fprintf(fp, "{\"id\": %ld, \"lat\": %ld, \"lon\": %ld}", 
+                    ref_id, nd->lat, nd->lon);
+            } else {
+                fprintf(fp, "{\"id\": %ld, \"lat\": 0, \"lon\": 0}", ref_id);
+            }
+        }
+        fprintf(fp, "]\n\t}");
         way = way->next;
     }
     fprintf(fp, "\n]\n");
