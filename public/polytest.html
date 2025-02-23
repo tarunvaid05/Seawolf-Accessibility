@@ -86,7 +86,34 @@
           fillOpacity: 0.35,
         });
 
-        campusPolygon.setMap(map);
+        //campusPolygon.setMap(map);
+
+        fetchStepsData(map);
+      }
+
+      function fetchStepsData(map) {
+        fetch("ways_output.json")
+          .then(response => response.json())
+          .then(data => {
+            data.forEach(way => {
+              const path = way.refs.map(ref => ({
+                lat: ref.lat / 1e9,
+                lng: ref.lon / 1e9,
+              }));
+
+              const stepsPath = new google.maps.Polyline({
+                path: path,
+                geodesic: true,
+                strokeColor: "#FF0000",
+                fillColor: "#FF0000",
+                strokeOpacity: 1.0,
+                strokeWeight: 2.0,
+              });
+
+              stepsPath.setMap(map);
+            });
+          })
+          .catch(error => console.error("Error fetching steps data:", error));
       }
     </script>
   </head>
