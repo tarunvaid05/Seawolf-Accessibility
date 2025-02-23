@@ -37,7 +37,6 @@ def get_directions(start: str = Query(..., description="Start coordinate as 'lat
         raise HTTPException(status_code=400, detail="Coordinates must be provided as 'lat,lng'") from e
 
     now = datetime.now()
-    # Get driving directions—here we use walking mode.
     directions_result = gmaps.directions(
         origin=start_coords,
         destination=end_coords,
@@ -48,8 +47,8 @@ def get_directions(start: str = Query(..., description="Start coordinate as 'lat
     if not directions_result:
         raise HTTPException(status_code=404, detail="No walking route found.")
 
-    # Return the best (first) route.
-    return directions_result[0]
+    # Return the best (first) route wrapped in an object with a routes property.
+    return {"routes": [directions_result[0]]}
 
 if __name__ == "__main__":
     import uvicorn
