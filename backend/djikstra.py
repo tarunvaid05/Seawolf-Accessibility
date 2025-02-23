@@ -1,119 +1,155 @@
+#!/usr/bin/env python3
 import json
-import networkx as nx
-from geopy.distance import geodesic
-import polyline
-from typing import List
+import heapq
+import math
 
-
-def build_graph_from_walkable_json(json_path: str) -> nx.Graph:
+def load_graph():
     """
-    Build a NetworkX graph from the walkable_paths.json file.
-    - Each 'way' in the JSON is an object with:
-        {
-          "way_id": <some_way_id>,
-          "refs": [
-            {"id": <int>, "lat": <int>, "lon": <int>},
-            ...
-          ]
-        }
-    - We create a node for each 'ref' (using 'id' as the node ID).
-    - Within each 'way', consecutive refs become edges, weighted by geodesic distance.
+    Loads formatted_data.json and builds an undirected graph.
+    Each junction vertex (identified by its id) is a node.
+    Each edge from a segment becomes a bidirectional edge with a weight (distance)
+    and carries its polyline (the list of vertices between the junctions).
     """
-    G = nx.Graph()
+    with open("formatted_data.json", "r") as f:
+        segments = json.load(f)
 
-    with open(json_path, "r") as f:
-        ways = json.load(f)
+    graph = {}  # node_id -> list of (neighbor_id, distance, polyline)
+    nodes = {}  # node_id -> (lat, lon) in degrees
 
-    for way in ways:
-        refs = way.get("refs", [])
-        if len(refs) < 2:
-            continue  # Not enough refs to form an edge
+    for seg in segments:
+        for edge in seg["edges"]:
+            start = edge["start"]
+            end = edge["end"]
+            start_id = start["id"]
+            end_id = end["id"]
+            d = edge["distance"]
 
-        # Connect consecutive refs within this way
-        for i in range(len(refs) - 1):
-            ref_a = refs[i]
-            ref_b = refs[i + 1]
+            # Record node coordinates (convert to proper degrees)
+            if start_id not in nodes:
+                nodes[start_id] = (start["lat"] / 1e9, start["lon"] / 1e9)
+            if end_id not in nodes:
+                nodes[end_id] = (end["lat"] / 1e9, end["lon"] / 1e9)
 
-            node_a_id = ref_a["id"]
-            node_b_id = ref_b["id"]
+            # Add edge in both directions (undirected graph)
+            graph.setdefault(start_id, []).append((end_id, d, edge["polyline"]))
+            # For the reverse direction, reverse the polyline so that the start is at the beginning.
+            graph.setdefault(end_id, []).append((start_id, d, list(reversed(edge["polyline"]))))
+    return graph, nodes
 
-            # Convert to standard lat/lon (adjust the divider if needed, e.g., 1e6 vs 1e9)
-            lat_a = ref_a["lat"] / 1e9
-            lon_a = ref_a["lon"] / 1e9
-            lat_b = ref_b["lat"] / 1e9
-            lon_b = ref_b["lon"] / 1e9
-
-            if node_a_id not in G:
-                G.add_node(node_a_id, lat=lat_a, lon=lon_a)
-            if node_b_id not in G:
-                G.add_node(node_b_id, lat=lat_b, lon=lon_b)
-
-            dist_m = geodesic((lat_a, lon_a), (lat_b, lon_b)).meters
-            G.add_edge(node_a_id, node_b_id, weight=dist_m)
-
-    return G
-
-
-def k_shortest_paths_as_polylines(
-    G: nx.Graph,
-    start_id: int,
-    end_id: int,
-    k: int = 3
-) -> List[str]:
+def dijkstra(graph, start, goal):
     """
-    Find the top-k shortest paths (by distance) from 'start_id' to 'end_id'.
-    Return each path as an encoded polyline string.
+    Standard Dijkstra algorithm.
+    Returns a tuple: (total distance, list of node ids forming the path, list of polyline edges used).
     """
-    if start_id not in G or end_id not in G:
-        return []
+    dist = {node: float('inf') for node in graph}
+    previous = {node: None for node in graph}
+    edge_used = {node: None for node in graph}  # store the polyline for the edge that led to the node
+    dist[start] = 0
 
-    paths_gen = nx.shortest_simple_paths(G, source=start_id, target=end_id, weight="weight")
-
-    polylines = []
-    count = 0
-
-    for path in paths_gen:
-        coords = []
-        for node_id in path:
-            lat = G.nodes[node_id]["lat"]
-            lon = G.nodes[node_id]["lon"]
-            coords.append((lat, lon))
-
-        encoded = polyline.encode(coords)
-        polylines.append(encoded)
-
-        count += 1
-        if count >= k:
+    queue = [(0, start)]
+    while queue:
+        current_dist, current = heapq.heappop(queue)
+        if current == goal:
             break
+        if current_dist > dist[current]:
+            continue
+        for neighbor, weight, poly in graph[current]:
+            alt = current_dist + weight
+            if alt < dist[neighbor]:
+                dist[neighbor] = alt
+                previous[neighbor] = current
+                edge_used[neighbor] = poly
+                heapq.heappush(queue, (alt, neighbor))
 
-    return polylines
+    if dist[goal] == float('inf'):
+        return None, None, None
 
+    path = []
+    edges_in_path = []
+    node = goal
+    while node is not None:
+        path.append(node)
+        node = previous[node]
+    path.reverse()
+    for i in range(1, len(path)):
+        edges_in_path.append(edge_used[path[i]])
+    return dist[goal], path, edges_in_path
+
+def combine_polylines(polylines):
+    """
+    Combines a list of polyline segments (each a list of vertices) into one continuous polyline,
+    removing duplicate junction vertices.
+    """
+    if not polylines:
+        return []
+    combined = polylines[0][:]
+    for poly in polylines[1:]:
+        # Remove the first vertex to avoid duplication
+        combined.extend(poly[1:])
+    return combined
+
+def encode_polyline(points):
+    """
+    Encodes a polyline using the Google Encoded Polyline Algorithm.
+    Points is a list of dicts with "lat" and "lon" (in degrees).
+    """
+    def encode_coordinate(coordinate):
+        coordinate = int(round(coordinate * 1e5))
+        coordinate = coordinate << 1
+        if coordinate < 0:
+            coordinate = ~coordinate
+        encoded = ""
+        while coordinate >= 0x20:
+            encoded += chr((0x20 | (coordinate & 0x1f)) + 63)
+            coordinate >>= 5
+        encoded += chr(coordinate + 63)
+        return encoded
+
+    result = ""
+    prev_lat = 0
+    prev_lon = 0
+    for point in points:
+        lat = point["lat"]
+        lon = point["lon"]
+        d_lat = lat - prev_lat
+        d_lon = lon - prev_lon
+        result += encode_coordinate(d_lat)
+        result += encode_coordinate(d_lon)
+        prev_lat = lat
+        prev_lon = lon
+    return result
 
 def main():
-    json_path = "ways_output.json"  # Adjust if needed
-    G = build_graph_from_walkable_json(json_path)
+    graph, nodes = load_graph()
+    if not graph:
+        print("Graph is empty.")
+        return
 
-    # Example node IDs from your JSON; update these values to valid IDs
-    start_id = 6164404478
-    end_id = 7865937480
+    all_nodes = list(graph.keys())
+    start = all_nodes[0]
+    goal = all_nodes[-1]
+    print(f"Running Dijkstra from node {start} to node {goal}")
 
-    top_3_polylines = k_shortest_paths_as_polylines(G, start_id, end_id, k=3)
+    total_distance, path, edges_in_path = dijkstra(graph, start, goal)
+    if path is None:
+        print("No path found.")
+        return
 
-    # Print to console for a quick check
-    print(f"Found {len(top_3_polylines)} shortest path(s) from {start_id} to {end_id}:")
-    for i, p in enumerate(top_3_polylines, start=1):
-        print(f"Path {i}: {p}")
+    print(f"Total distance: {total_distance:.2f} meters")
+    
+    full_polyline = combine_polylines(edges_in_path)
+    
+    print("Polyline for the best path (lat, lon):")
+    # Convert the combined polyline to a list of points with lat/lon in degrees.
+    points = [{"lat": point["lat"] / 1e9, "lon": point["lon"] / 1e9} for point in full_polyline]
+    encoded = encode_polyline(points)
 
-    # Write results to a text file in the same folder
-    output_file = "dijkstra_results.txt"
-    with open(output_file, "w") as f:
-        f.write(f"Shortest paths between {start_id} and {end_id}\n")
-        f.write(f"Total paths found: {len(top_3_polylines)}\n\n")
-        for i, p in enumerate(top_3_polylines, start=1):
-            f.write(f"Path {i}: {p}\n")
+    # 1) Print to console (optional)
+    print(encoded)
 
-    print(f"\nResults saved to '{output_file}'.")
-
+    # 2) ALSO write to a small JSON file:
+    with open("best_path_polyline.json", "w") as f:
+        json.dump({"encoded_polyline": encoded}, f)
 
 if __name__ == "__main__":
     main()

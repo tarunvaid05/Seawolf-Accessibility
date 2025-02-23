@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html>
   <head>
@@ -47,7 +48,7 @@
       // Fetch API key and load Google Maps when the page loads
       window.onload = fetchApiKey;
 
-      // The polygon coordinates (in an array of { lat, lng } objects)
+      // The campus polygon coordinates (array of { lat, lng } objects)
       const campusCoords = [
         { lat: 40.925398, lng: -73.117393 },
         { lat: 40.926034, lng: -73.124602 },
@@ -76,22 +77,7 @@
           center: mapCenter,
         });
 
-        // Encoded polyline string
-        const encodedPolyline = "atvxFvmh}LJDBHP`@BBVl@DL@F\f@JNFXN\L@F?DJIVI|@@^AHANC@EXCZEn@OxBBFDBpANPqCBe@f@AFAF@JBD?dCZR@F[DQL}BB_@Vo@NsBQAMrBGp@N@VFF?PW";
-
-        // Decode the polyline string
-        const decodedPath = google.maps.geometry.encoding.decodePath(encodedPolyline);
-
-        // Create a polyline from the decoded path
-        const polyline = new google.maps.Polyline({
-          path: decodedPath,
-          geodesic: true,
-          strokeColor: "#0000FF", // Blue color for visibility
-          strokeOpacity: 1.0,
-          strokeWeight: 2.0,
-        });
-
-        // Create the polygon
+        // (Optional) Draw the campus polygon
         const campusPolygon = new google.maps.Polygon({
           paths: campusCoords,
           strokeColor: "#FF0000",
@@ -100,11 +86,32 @@
           fillColor: "#FF0000",
           fillOpacity: 0.35,
         });
+        // 1) Fetch the encoded polyline string from best_path_polyline.json
+        fetch("best_path_polyline.json") 
+          .then(response => response.json())
+          .then(data => {
+            // data.encoded_polyline is the string from djikstra.py
+            const decodedPath = google.maps.geometry.encoding.decodePath(
+              data.encoded_polyline
+            );
 
-        //campusPolygon.setMap(map);
-        polyline.setMap(map);
+            // 2) Draw that decoded polyline in green
+            const dijkstraLine = new google.maps.Polyline({
+              path: decodedPath,
+              geodesic: true,
+              strokeColor: "#00FF00",
+              strokeOpacity: 1.0,
+              strokeWeight: 3.0,
+            });
+            dijkstraLine.setMap(map);
+          })
+          .catch(error => console.error("Error fetching the Dijkstra polyline:", error));
+
+        // campusPolygon.setMap(map);
+        // Instead of using an encoded polyline, we now fetch and draw formatted data polylines.
+        fetchFormattedData(map);
         fetchStepsData(map);
-        //fetchWalkablePath(map);
+        fetchWalkablePath(map);
       }
 
       function fetchStepsData(map) {
@@ -144,8 +151,7 @@
               });
             });
 
-            // Filter ways to only include those that have at least one adjacent segment
-            // (i.e. at least one ref id that appears more than once)
+            // Filter ways to only include those with at least one adjacent segment
             const filteredWays = data.filter(way =>
               way.refs.some(ref => refCounts[ref.id] > 1)
             );
