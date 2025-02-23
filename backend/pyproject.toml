@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Map for disabled people at stony that takes into account elevation + disability accesible routes"
 authors = ["tarunvaid05 tarunvaid05@gmail.com"]
 readme = "README.md"
-requires-python = ">=3.13"
+python = ">=3.13"
 
 [tool.poetry.dependencies]
 fastapi = "^0.115.8"
