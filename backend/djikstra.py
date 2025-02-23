@@ -4,6 +4,9 @@ import heapq
 import math
 import route_cost
 
+# A very large cost to penalize staircase segments
+HUGE_PENALTY = 1e6
+
 def haversine(lat1, lon1, lat2, lon2):
     """
     Compute the haversine distance (in meters) between two points given in degrees.
