@@ -1,8 +1,7 @@
-<!DOCTYPE html>
+<--<!DOCTYPE html>-->
 <html>
   <head>
-    
-    <title>Show Campus Polygon</title>
+    <title>Show Campus Polygon with Grid</title>
     <style>
       /* Map container takes full page for demonstration */
       #map {
@@ -12,71 +11,63 @@
     </style>
     <!-- Load the Google Maps JavaScript API -->
     <script>
-        function loadGoogleMaps(apiKey) {
-          const script = document.createElement("script");
-          script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}`;
-          script.async = true;
-          script.defer = true;
-      
-          // Wait for Google Maps to load before initializing the map
-          script.onload = function () {
-            console.log("Google Maps API loaded successfully");
-            initMap(); // Call initMap only when the script is loaded
-          };
-      
-          script.onerror = function () {
-            console.error("Failed to load Google Maps API");
-          };
-      
-          document.head.appendChild(script);
-        }
-      
-        function fetchApiKey() {
-            fetch("/api/getMapsKey")
-              .then(response => {
-                if (!response.ok) {
-                  throw new Error(`HTTP error! Status: ${response.status}`);
-                }
-                return response.json();
-              })
-              .then(data => {
-                console.log("API key fetched successfully:", data.apiKey);
-                loadGoogleMaps(data.apiKey);
-              })
-              .catch(error => console.error("Error fetching API key:", error));
-          }
-          
-          
-      
-        // Fetch API key and load Google Maps when the page loads
-        window.onload = fetchApiKey;
-      </script>
-      
-      
-    <script>
+      function loadGoogleMaps(apiKey) {
+        const script = document.createElement("script");
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry`;
+        script.async = true;
+        script.defer = true;
+
+        script.onload = function () {
+          console.log("Google Maps API loaded successfully");
+          initMap(); // Call initMap only when the script is loaded
+        };
+
+        script.onerror = function () {
+          console.error("Failed to load Google Maps API");
+        };
+
+        document.head.appendChild(script);
+      }
+
+      function fetchApiKey() {
+        fetch("/api/getMapsKey")
+          .then(response => {
+            if (!response.ok) {
+              throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.json();
+          })
+          .then(data => {
+            console.log("API key fetched successfully:", data.apiKey);
+            loadGoogleMaps(data.apiKey);
+          })
+          .catch(error => console.error("Error fetching API key:", error));
+      }
+
+      // Fetch API key and load Google Maps when the page loads
+      window.onload = fetchApiKey;
+
       // The polygon coordinates (in an array of { lat, lng } objects)
       const campusCoords = [
-    { lat: 40.925398, lng: -73.117393 },  // Top-right (Northeast corner)
-    { lat: 40.926034, lng: -73.124602 },  // Top-left (Northwest corner)
-    { lat: 40.912822, lng: -73.138967 },  // on top of west apps
-    { lat: 40.909763, lng: -73.136451 },  // under west j
-    { lat: 40.908006, lng: -73.126973 },  // under tabler (updated)
-    { lat: 40.908452, lng: -73.124195 },  // new coordinate
-    { lat: 40.906895, lng: -73.121700 },  // new coordinate
-    { lat: 40.905286, lng: -73.122594 },  // mid marine sciences
-    { lat: 40.902669, lng: -73.131498 },  // far left map
-    { lat: 40.893097, lng: -73.127557 },  // bottom left south p
-    { lat: 40.893881, lng: -73.120148 },  // bottom right south p
-    { lat: 40.900724, lng: -73.122800 },  // top right south p
-    { lat: 40.904083, lng: -73.107499 },  // bottom right hospital
-    { lat: 40.908453, lng: -73.107537 },  // mid right hospital
-    { lat: 40.914851, lng: -73.114094 },  // top hospital
-    { lat: 40.925398, lng: -73.117393 }   // Closing the loop (must match the first point)
-];
-
+        { lat: 40.925398, lng: -73.117393 },
+        { lat: 40.926034, lng: -73.124602 },
+        { lat: 40.912822, lng: -73.138967 },
+        { lat: 40.909763, lng: -73.136451 },
+        { lat: 40.908006, lng: -73.126973 },
+        { lat: 40.908452, lng: -73.124195 },
+        { lat: 40.906895, lng: -73.121700 },
+        { lat: 40.905286, lng: -73.122594 },
+        { lat: 40.902669, lng: -73.131498 },
+        { lat: 40.893097, lng: -73.127557 },
+        { lat: 40.893881, lng: -73.120148 },
+        { lat: 40.900724, lng: -73.122800 },
+        { lat: 40.904083, lng: -73.107499 },
+        { lat: 40.908453, lng: -73.107537 },
+        { lat: 40.914851, lng: -73.114094 },
+        { lat: 40.925398, lng: -73.117393 }
+      ];
 
       function initMap() {
-        // Center the map near the polygon (pick a lat/lng inside or near your polygon)
         const mapCenter = { lat: 40.912, lng: -73.125 };
 
         // Create the map
@@ -95,7 +86,6 @@
           fillOpacity: 0.35,
         });
 
-        // Display the polygon on the map
         campusPolygon.setMap(map);
       }
     </script>
