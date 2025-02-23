@@ -176,8 +176,8 @@ def main():
     # Specify the origin and destination coordinates in degrees.
     # (Format: latitude, longitude)
     # You can change these values as needed.
-    origin_lat, origin_lon = 40.914521, -73.131887
-    destination_lat, destination_lon = 40.914174, -73.124373
+    origin_lat, origin_lon = 40.9146917, -73.1225788
+    destination_lat, destination_lon = 40.9172855, -73.1210774
 
     # Find the nearest nodes to the provided coordinates.
     origin_node = find_nearest_node(origin_lat, origin_lon, nodes_list, valid_ids)
