@@ -2,7 +2,6 @@
 import json
 import heapq
 import math
-import route_cost
 
 def haversine(lat1, lon1, lat2, lon2):
     """
@@ -125,7 +124,7 @@ def dijkstra(graph, start, goal):
         if current_dist > dist[current]:
             continue
         for neighbor, weight, poly in graph[current]:
-            alt = current_dist + weight + route_cost.compute_edge_cost(poly)
+            alt = current_dist + weight
             if alt < dist[neighbor]:
                 dist[neighbor] = alt
                 previous[neighbor] = current
@@ -265,8 +264,8 @@ def main():
     nodes_list = load_nodes()
     # Specify origin and destination coordinates in degrees.
     # (Format: latitude, longitude)
-    origin = (40.9146917, -73.1225788)
-    destination = (40.9172855, -73.1210774)
+    origin = (40.914521, -73.131887)
+    destination = (40.904083, -73.107499)
     # Snap the origin and destination onto the graph.
     origin_node = snap_point(origin, graph, graph_nodes)
     destination_node = snap_point(destination, graph, graph_nodes)
