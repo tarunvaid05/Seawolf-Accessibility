@@ -3,6 +3,14 @@
 [build]
 builder = "NIXPACKS"
 rootDirectory = "backend"
+
+# Override default setup phase
+nixpacksPlan = { 
+  phases = { 
+    setup = { cmds = ["echo Skipping default venv setup"] } 
+  } 
+}
+
 buildCommand = """
 curl -sSL https://install.python-poetry.org | python3 - && \
 export PATH="$HOME/.local/bin:$PATH" && \
