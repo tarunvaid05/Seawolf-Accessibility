@@ -91,7 +91,11 @@ if __name__ == "__main__":
     ## Get elevation data for the first segment
     if segments:
         first_polyline = segments[0]['polyline']
+<<<<<<< HEAD
         elevation_data = get_elevation(first_polyline)
+=======
+        elevation_data = get_elevation_(first_polyline)
+>>>>>>> 6fdd33405734e68ac88c5c9063e3978f03d5f071
         print("Elevation Data for First Segment:")
         for point in elevation_data:
             print(point)
