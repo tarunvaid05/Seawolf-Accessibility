@@ -5,6 +5,7 @@ builder = "NIXPACKS"
 rootDirectory = "backend"
 
 [build.env]
+NIXPACKS_PKGS = "python310Full"
 nixpacksPlan = { 
   phases = { 
     setup = {
