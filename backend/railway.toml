@@ -3,7 +3,6 @@
 [build]
 builder = "NIXPACKS"
 rootDirectory = "backend"
-buildCommand = "ln -sf $(which pip3) /usr/local/bin/pip && pip install --upgrade pip && pip install -r requirements.txt"
 
 [build.env]
 NIXPACKS_PKGS = "python310Full"
