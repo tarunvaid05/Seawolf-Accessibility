@@ -1,6 +1,0 @@
-[build]
-builder = "Nixpacks"
-buildCommand = "pip install --upgrade pip && pip install -r requirements.txt"
-
-[deploy]
-startCommand = "uvicorn routingBeta:app --host 0.0.0.0 --port $PORT"
