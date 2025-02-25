@@ -5,9 +5,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from datetime import datetime
-# Import methods from djikstra.py (which itself calls route_cost.compute_edge_cost)
-# Ensure that any coordinate conversion in route_cost uses a helper (e.g. convert_coord)
-# that returns only a (lat, lon) 2-tuple.
+# Import methods from djikstra.py
 from djikstra import load_graph, snap_point, dijkstra, combine_polylines, encode_polyline
 
 app = FastAPI()
@@ -37,7 +35,7 @@ def get_directions(start: str = Query(..., description="Start coordinate as 'lat
     except Exception as e:
         raise HTTPException(status_code=400, detail="Coordinates must be provided as 'lat,lng'") from e
 
-    # Load the routing graph and nodes.
+    # Load the routing graph and nodes using the cached load_graph.
     try:
         graph, graph_nodes = load_graph()
     except Exception as e:
@@ -63,7 +61,7 @@ def get_directions(start: str = Query(..., description="Start coordinate as 'lat
     points = [{"lat": pt["lat"] / 1e9, "lon": pt["lon"] / 1e9} for pt in full_polyline]
     encoded = encode_polyline(points)
     
-    # Build a mock Directions response that the frontend (example.js) can work with.
+    # Build a mock Directions response that the frontend can work with.
     response = {
         "routes": [
             {

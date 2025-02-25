@@ -4,6 +4,10 @@ import heapq
 import math
 import route_cost
 
+# Global cache variables for the graph and nodes.
+GRAPH_CACHE = None
+NODES_CACHE = None
+
 def haversine(lat1, lon1, lat2, lon2):
     """
     Compute the haversine distance (in meters) between two points given in degrees.
@@ -88,7 +92,11 @@ def load_graph():
     Each junction vertex (identified by its "id") is a node.
     Each edge becomes bidirectional with a weight (distance) and its polyline.
     For the reverse direction, the polyline is stored in reverse.
+    Uses caching to avoid reloading the graph on subsequent calls.
     """
+    global GRAPH_CACHE, NODES_CACHE
+    if GRAPH_CACHE is not None and NODES_CACHE is not None:
+        return GRAPH_CACHE, NODES_CACHE
     with open("formatted_data.json", "r") as f:
         segments = json.load(f)
     graph = {}   # node_id -> list of (neighbor_id, distance, polyline)
@@ -106,6 +114,8 @@ def load_graph():
                 nodes[end_id] = (end["lat"] / 1e9, end["lon"] / 1e9)
             graph.setdefault(start_id, []).append((end_id, d, edge["polyline"]))
             graph.setdefault(end_id, []).append((start_id, d, list(reversed(edge["polyline"]))))
+    GRAPH_CACHE = graph
+    NODES_CACHE = nodes
     return graph, nodes
 
 def dijkstra(graph, start, goal):
@@ -266,8 +276,8 @@ def main():
     nodes_list = load_nodes()
     # Specify origin and destination coordinates in degrees.
     # (Format: latitude, longitude)
-    origin = (40.914320,-73.121101)
-    destination = (40.915454,-73.119767)
+    origin = (40.914320, -73.121101)
+    destination = (40.915454, -73.119767)
     # Snap the origin and destination onto the graph.
     origin_node = snap_point(origin, graph, graph_nodes)
     destination_node = snap_point(destination, graph, graph_nodes)
