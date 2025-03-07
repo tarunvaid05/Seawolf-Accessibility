@@ -200,7 +200,7 @@ export default function Example() {
     if (!startLocation || !endLocation) return;
     try {
       console.log("Fetching directions for:", startLocation, endLocation);
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
+      const backendUrl = process.env.NODE_ENV === 'production' ? process.env.NEXT_PUBLIC_BACKEND_URL : 'http://127.0.0.1:8000';
       const response = await fetch(
         `${backendUrl}/api/directions?start=${encodeURIComponent(startLocation)}&end=${encodeURIComponent(endLocation)}`
       );      
