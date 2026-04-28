@@ -1,0 +1,37 @@
+# Ignore environment files
+.env
+
+# Ignore dependency lock files
+package-lock.json
+poetry.lock
+
+# Ignore Python cache files everywhere
+**/__pycache__/
+__pycache__/
+
+# Ignore compiled Python files
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore Node modules (if applicable)
+node_modules/
+.next/
+
+# Ignore virtual environments (if using one)
+venv/
+.env/
+
+# Ignore logs and temp files
+*.log
+*.tmp
+
+# Ignore build and cache directories (if applicable)
+dist/
+build/
+.cache/
+
+
+# misc
+.DS_Store
+*.pem
