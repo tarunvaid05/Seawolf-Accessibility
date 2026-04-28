@@ -93,9 +93,7 @@ int read_varint(FILE *in, int64_t *val){
         res |= (ch & 0x7F) << shift;
         shift += 7;
         bytes_read++;
-    }
-    // keep reading until MSB is a 0 (1 meaning continuation, 0 means stop)
-    while(ch & 0x80);
+    } while(ch & 0x80);
     if(bytes_read > 9) return -1;
 
     *val = res;
