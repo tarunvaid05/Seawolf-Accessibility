@@ -6,7 +6,7 @@
 
 int main(int argc, char **argv)
 {
-    FILE *fp = fopen("./data/sbu.pbf", "r");
+    FILE *fp = fopen("./data/sbu.pbf", "rb");
     if (fp == NULL)
     {
         printf("Error: File not found\n");

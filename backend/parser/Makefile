@@ -13,14 +13,10 @@ ALL_SRCF := $(shell find $(SRCD) -type f -name *.c)
 ALL_OBJF := $(patsubst $(SRCD)/%,$(BLDD)/%,$(ALL_SRCF:.c=.o))
 ALL_FUNCF := $(filter-out $(MAIN) $(AUX), $(ALL_OBJF))
 
-TEST_SRC := $(shell find $(TSTD) -type f -name *.c)
-
 INC := -I $(INCD)
 
 CFLAGS := -fcommon -Wall -Wno-unused-function -MMD -std=gnu11 -Wno-format
-COLORF := -DCOLOR
 
-STD := -std=gnu11
 LIBS := -lz
 
 CFLAGS += $(STD)

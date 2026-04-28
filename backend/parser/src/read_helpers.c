@@ -75,10 +75,10 @@ uint32_t process_len(FILE *in){
  * @return 0 if immediate EOF without error, no bytes read, -1 if immed EOF without error with bytes read, otherwise
  * returns n number of bytes read
  * */
-int read_varint(FILE *in, uint64_t *val){
-    uint64_t res = 0;
+int read_varint(FILE *in, int64_t *val){
+    int64_t res = 0;
     int shift = 0;
-    uint64_t ch;
+    int64_t ch;
     int bytes_read = 0;
     if(feof(in)) return 0;
     do

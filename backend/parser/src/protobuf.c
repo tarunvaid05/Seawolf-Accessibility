@@ -167,7 +167,7 @@ int PB_read_tag(FILE *in, PB_WireType *typep, int32_t *fieldp) {
         return 0;
     }
 
-    uint64_t tag;
+    int64_t tag;
     int bytes_read = 0;
     if((bytes_read = read_varint(in, &tag)) < 1){
         return bytes_read;
@@ -245,7 +245,6 @@ int PB_read_value(FILE *in, PB_WireType type, union value *valuep) {
             return bytes_read + read_len;
 
         case I32_TYPE:
-            int32_t val_32;
             if(fread(&val_32, sizeof(int32_t), 1, in) != 1) return -1;
             valuep->i64 = val_32;
             return 4;
@@ -375,7 +374,7 @@ int PB_expand_packed_fields(PB_Message msg, int fnum, PB_WireType type) {
         PB_Field *packed_fld = malloc(sizeof(PB_Field));
         packed_fld->type = type;
         packed_fld->number = fnum;
-        uint64_t test;
+        int64_t test;
         uint8_t bytes_read_varint = 0;
         if((bytes_read_varint = read_varint(memstream, &test)) < 1){
             if(bytes_read_varint){fprintf(stderr, "unexpected end to file "); return -1;}
