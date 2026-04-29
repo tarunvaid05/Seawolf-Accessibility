@@ -76,6 +76,21 @@
           center: mapCenter,
         });
 
+        // Encoded polyline string
+        const encodedPolyline = "}yuxF`rf}Lc@|CYfBB\\@NDHHJ";
+
+        // Decode the polyline string
+        const decodedPath = google.maps.geometry.encoding.decodePath(encodedPolyline);
+
+        // Create a polyline from the decoded path
+        const polyline = new google.maps.Polyline({
+          path: decodedPath,
+          geodesic: true,
+          strokeColor: "#0000FF", // Blue color for visibility
+          strokeOpacity: 1.0,
+          strokeWeight: 2.0,
+        });
+
         // Create the polygon
         const campusPolygon = new google.maps.Polygon({
           paths: campusCoords,
@@ -87,8 +102,9 @@
         });
 
         //campusPolygon.setMap(map);
-        fetchWalkablePath(map);
+        polyline.setMap(map);
         fetchStepsData(map);
+        fetchWalkablePath(map);
       }
 
       function fetchStepsData(map) {
@@ -116,17 +132,32 @@
           .catch(error => console.error("Error fetching steps data:", error));
       }
 
-      function fetchWalkablePath(map)  {
+      function fetchWalkablePath(map) {
         fetch("ways_output.json")
           .then(response => response.json())
           .then(data => {
+            // Build a map of reference id counts across all ways
+            const refCounts = {};
             data.forEach(way => {
+              way.refs.forEach(ref => {
+                refCounts[ref.id] = (refCounts[ref.id] || 0) + 1;
+              });
+            });
+
+            // Filter ways to only include those that have at least one adjacent segment
+            // (i.e. at least one ref id that appears more than once)
+            const filteredWays = data.filter(way =>
+              way.refs.some(ref => refCounts[ref.id] > 1)
+            );
+
+            // Draw each filtered way as a polyline
+            filteredWays.forEach(way => {
               const path = way.refs.map(ref => ({
                 lat: ref.lat / 1e9,
                 lng: ref.lon / 1e9,
               }));
 
-              const stepsPath = new google.maps.Polyline({
+              const polyline = new google.maps.Polyline({
                 path: path,
                 geodesic: true,
                 strokeColor: "blue",
@@ -135,10 +166,10 @@
                 strokeWeight: 1.0,
               });
 
-              stepsPath.setMap(map);
+              polyline.setMap(map);
             });
           })
-          .catch(error => console.error("Error fetching steps data:", error));
+          .catch(error => console.error("Error fetching walkable path data:", error));
       }
     </script>
   </head>
