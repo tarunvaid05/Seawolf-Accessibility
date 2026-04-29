@@ -755,3 +755,56 @@ int64_t OSM_BBox_get_min_lat(OSM_BBox *bbp) {
     if(!bbp) return 0;
     return bbp->min_lat;
 }
+
+int way_is_steps(OSM_Way *wp) {
+
+    int num_keys = OSM_Way_get_num_keys(wp);
+    for(int i = 0; i < num_keys; i++){
+        char *key = OSM_Way_get_key(wp, i);
+        char *value = OSM_Way_get_value(wp, i);
+        if(strcmp(key, "highway") == 0 && strcmp(value, "steps") == 0) return 1;
+    }
+    return 0;
+}
+
+int OSM_Way_steps_to_JSON(FILE *fp, OSM_Map *mp){
+    if(!mp) {fprintf(stderr, "not a map "); return -1;}
+    int num_ways = OSM_Map_get_num_ways(mp) - 1;
+    if(num_ways == 0) {fprintf(stderr, "no ways to be selected from "); return -1;}
+    fprintf(fp,"[\n");
+    OSM_Way *way= OSM_Map_get_Way(mp, 0)->next;
+    int printed_something = 0;
+    for(int i = 0; i < num_ways; i++)
+    {
+        if(way_is_steps(way)){
+            // if not the first item, print a comma to keep valid JSON syntax
+            if(printed_something) fprintf(fp,",\n");
+            printed_something = 1;
+
+            // Printing the way_id
+            fprintf(fp, "\t{\n");
+            fprintf(fp, "\t\t\"way_id\": %ld,\n", way->id);
+            fprintf(fp,"\t\t\"refs\": [");
+
+            int num_refs = OSM_Way_get_num_refs(way);
+            for(int j = 0; j < num_refs; j++){
+                OSM_Id ref_id = OSM_Way_get_ref(way, j);
+                OSM_Node *nd = Find_Node_by_id(mp, ref_id);
+
+                // print comma between references
+                if(j > 0) fprintf(fp,", ");
+
+                if(nd){
+                    fprintf(fp, "{\"id\": %ld, \"lat\": %ld, \"lon\": %ld}", 
+                        ref_id, nd->lat, nd->lon);
+                } else {
+                    fprintf(fp, "{\"id\": %ld, \"lat\": 0, \"lon\": 0}", ref_id);
+                }
+            }
+            fprintf(fp, "]\n\t}");
+        }
+        way = way->next;
+    }
+    fprintf(fp, "\n]\n");
+    return 0;
+}
