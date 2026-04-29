@@ -17,8 +17,8 @@ app.add_middleware(
 )
 
 # Hardcoded start and end locations
-ORIGIN = "Eisenhower Hall, Stony Brook, NY 11794"
-DESTINATION = "Student Activities Center, 100 Nicolls Rd, Stony Brook University, NY 11790"
+ORIGIN = "East Side Dining, John S. Toll Drive, Stony Brook, NY 11794"
+DESTINATION = "SAC Plaza, Student Activities Center, Suite 220, Stony Brook, NY 11790"
 GOOGLE_MAPS_API_KEY = "AIzaSyAvyVfvVXEjsGEQHPIYP0HjPMN_BRhzPQg"  # Replace with your actual API key
 
 @app.get("/get_routes")
@@ -53,3 +53,5 @@ def get_routes():
         return {"error": "No routes found", "api_response": data}
 
 # Run the server: uvicorn main:app --reload
+
+
