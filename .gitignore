@@ -3,7 +3,6 @@
 
 # Ignore dependency lock files
 package-lock.json
-poetry.lock
 
 # Ignore Python cache files everywhere
 **/__pycache__/
