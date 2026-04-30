@@ -85,8 +85,11 @@
           fillColor: "#FF0000",
           fillOpacity: 0.35,
         });
+        // Uncomment the line below to display the campus polygon
+        // campusPolygon.setMap(map);
+
         // 1) Fetch the encoded polyline string from best_path_polyline.json
-        fetch("best_path_polyline.json") 
+        fetch("best_path_polyline.json")
           .then(response => response.json())
           .then(data => {
             // data.encoded_polyline is the string from djikstra.py
@@ -106,11 +109,27 @@
           })
           .catch(error => console.error("Error fetching the Dijkstra polyline:", error));
 
-        // campusPolygon.setMap(map);
         // Instead of using an encoded polyline, we now fetch and draw formatted data polylines.
-        fetchFormattedData(map);
+        // fetchFormattedData(map);
         fetchStepsData(map);
-        polyline.setMap(map)
+        // Note: The stray call to polyline.setMap(map) has been removed as each polyline is set in its own callback
+
+        // ***** ADD TWO MARKERS *****
+        // Replace the coordinates below with your desired values.
+        const marker1 = new google.maps.Marker({
+          position: { lat: 40.915681500, lng: -73.130520500 },
+          map: map,
+          title: "Marker 1"
+        });
+
+        const marker2 = new google.maps.Marker({
+          position: { lat: 40.904125900, lng: -73.116369100 },
+          map: map,
+          title: "Marker 2"
+        });
+        // *****************************
+
+        // Optionally, uncomment the line below if you want to fetch walkable paths
         // fetchWalkablePath(map);
       }
 
