@@ -85,32 +85,24 @@
           fillColor: "#FF0000",
           fillOpacity: 0.35,
         });
-        // Uncomment the line below to display the campus polygon
-        // campusPolygon.setMap(map);
+                // Encoded polyline string
+        const encodedPolyline = "s_vxFjhj}Lr@|@NfAb@hA";
 
-        // 1) Fetch the encoded polyline string from best_path_polyline.json
-        fetch("best_path_polyline.json")
-          .then(response => response.json())
-          .then(data => {
-            // data.encoded_polyline is the string from djikstra.py
-            const decodedPath = google.maps.geometry.encoding.decodePath(
-              data.encoded_polyline
-            );
+        // Decode the polyline string
+        const decodedPath = google.maps.geometry.encoding.decodePath(encodedPolyline);
 
-            // 2) Draw that decoded polyline in green
-            const dijkstraLine = new google.maps.Polyline({
-              path: decodedPath,
-              geodesic: true,
-              strokeColor: "#00FF00",
-              strokeOpacity: 1.0,
-              strokeWeight: 3.0,
-            });
-            dijkstraLine.setMap(map);
-          })
-          .catch(error => console.error("Error fetching the Dijkstra polyline:", error));
+        // Create a polyline from the decoded path
+        const polyline = new google.maps.Polyline({
+          path: decodedPath,
+          geodesic: true,
+          strokeColor: "#0000FF", // Blue color for visibility
+          strokeOpacity: 1.0,
+          strokeWeight: 2.0,
+        });
 
-        // Instead of using an encoded polyline, we now fetch and draw formatted data polylines.
-        // fetchFormattedData(map);
+        //campusPolygon.setMap(map);
+        fetchWalkablePath(map);
+        //polyline.setMap(map);
         fetchStepsData(map);
         // Note: The stray call to polyline.setMap(map) has been removed as each polyline is set in its own callback
 
