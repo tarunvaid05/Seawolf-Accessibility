@@ -85,9 +85,24 @@
           fillColor: "#FF0000",
           fillOpacity: 0.35,
         });
+                // Encoded polyline string
+        const encodedPolyline = "s_vxFjhj}Lr@|@NfAb@hA";
+
+        // Decode the polyline string
+        const decodedPath = google.maps.geometry.encoding.decodePath(encodedPolyline);
+
+        // Create a polyline from the decoded path
+        const polyline = new google.maps.Polyline({
+          path: decodedPath,
+          geodesic: true,
+          strokeColor: "#0000FF", // Blue color for visibility
+          strokeOpacity: 1.0,
+          strokeWeight: 2.0,
+        });
 
         //campusPolygon.setMap(map);
         fetchWalkablePath(map);
+        //polyline.setMap(map);
         fetchStepsData(map);
       }
 
