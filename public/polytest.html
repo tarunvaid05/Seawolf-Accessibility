@@ -47,7 +47,7 @@
       // Fetch API key and load Google Maps when the page loads
       window.onload = fetchApiKey;
 
-      // The polygon coordinates (in an array of { lat, lng } objects)
+      // The campus polygon coordinates (array of { lat, lng } objects)
       const campusCoords = [
         { lat: 40.925398, lng: -73.117393 },
         { lat: 40.926034, lng: -73.124602 },
@@ -76,7 +76,7 @@
           center: mapCenter,
         });
 
-        // Create the polygon
+        // (Optional) Draw the campus polygon
         const campusPolygon = new google.maps.Polygon({
           paths: campusCoords,
           strokeColor: "#FF0000",
@@ -104,6 +104,52 @@
         fetchWalkablePath(map);
         //polyline.setMap(map);
         fetchStepsData(map);
+        // Note: The stray call to polyline.setMap(map) has been removed as each polyline is set in its own callback
+
+        // ***** ADD TWO MARKERS *****
+        // Replace the coordinates below with your desired values.
+        const marker1 = new google.maps.Marker({
+          position: { lat: 40.915681500, lng: -73.130520500 },
+          map: map,
+          title: "Marker 1"
+        });
+
+        const marker2 = new google.maps.Marker({
+          position: { lat: 40.904125900, lng: -73.116369100 },
+          map: map,
+          title: "Marker 2"
+        });
+        // *****************************
+
+        // Optionally, uncomment the line below if you want to fetch walkable paths
+        // fetchWalkablePath(map);
+      }
+
+      // New function: fetch formatted data and draw its polylines
+      function fetchFormattedData(map) {
+        fetch("formatted_data.json")
+          .then(response => response.json())
+          .then(data => {
+            data.forEach(way => {
+              way.edges.forEach(edge => {
+                const path = edge.polyline.map(point => ({
+                  lat: point.lat / 1e9,
+                  lng: point.lon / 1e9,
+                }));
+
+                const polyline = new google.maps.Polyline({
+                  path: path,
+                  geodesic: true,
+                  strokeColor: "#800080", // Purple color for visibility
+                  strokeOpacity: 1.0,
+                  strokeWeight: 2.0,
+                });
+
+                polyline.setMap(map);
+              });
+            });
+          })
+          .catch(error => console.error("Error fetching formatted data:", error));
       }
 
       function fetchStepsData(map) {
@@ -131,17 +177,31 @@
           .catch(error => console.error("Error fetching steps data:", error));
       }
 
-      function fetchWalkablePath(map)  {
+      function fetchWalkablePath(map) {
         fetch("ways_output.json")
           .then(response => response.json())
           .then(data => {
+            // Build a map of reference id counts across all ways
+            const refCounts = {};
             data.forEach(way => {
+              way.refs.forEach(ref => {
+                refCounts[ref.id] = (refCounts[ref.id] || 0) + 1;
+              });
+            });
+
+            // Filter ways to only include those with at least one adjacent segment
+            const filteredWays = data.filter(way =>
+              way.refs.some(ref => refCounts[ref.id] > 1)
+            );
+
+            // Draw each filtered way as a polyline
+            filteredWays.forEach(way => {
               const path = way.refs.map(ref => ({
                 lat: ref.lat / 1e9,
                 lng: ref.lon / 1e9,
               }));
 
-              const stepsPath = new google.maps.Polyline({
+              const polyline = new google.maps.Polyline({
                 path: path,
                 geodesic: true,
                 strokeColor: "blue",
@@ -150,10 +210,10 @@
                 strokeWeight: 1.0,
               });
 
-              stepsPath.setMap(map);
+              polyline.setMap(map);
             });
           })
-          .catch(error => console.error("Error fetching steps data:", error));
+          .catch(error => console.error("Error fetching walkable path data:", error));
       }
     </script>
   </head>
