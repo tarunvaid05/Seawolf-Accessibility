@@ -50,9 +50,10 @@ def haversine_distance(coord1: tuple, coord2: tuple) -> float:
     Returns:
         True if any point in segment_coords is within threshold meters of any staircase point.
     """
-def segment_overlaps_staircase(segment_coords: list, staircase_coords: list, threshold: float = 0.00001) -> bool:
+def segment_overlaps_staircase(segment_coords: list, staircase_coords: list, threshold) -> bool:
     for coord in segment_coords:
         for stair_pt in staircase_coords:
+            print("haversine distance", haversine_distance(coord, stair_pt))
             if haversine_distance(coord, stair_pt) <= threshold:
                 return True
     return False
@@ -69,13 +70,13 @@ def segment_overlaps_staircase(segment_coords: list, staircase_coords: list, thr
     Returns:
         True if the segment overlaps any staircase; otherwise False.
     """
-def segment_overlaps_any_staircase(segment_coords: list, staircases: list, threshold: float = 100.0) -> bool:
+def segment_overlaps_any_staircase(segment_coords: list, staircases: list, threshold) -> bool:
     for staircase in staircases:
         if segment_overlaps_staircase(segment_coords, staircase, threshold):
             return True
     return False
 
-def compute_edge_cost(poly, staircase_threshold: float = 0.000001):
+def compute_edge_cost(poly, staircase_threshold: float = 1000000000):
     if not poly:
         return 0.0
 
