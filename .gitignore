@@ -34,8 +34,9 @@ build/
 # vercel
 .vercel
 
-# Ignore best_path_polyline
+# Ignore encoded polyline string result json files
 *best_path_polyline.json
+*top_paths.json
 
 # misc
 .DS_Store
