@@ -21,7 +21,7 @@ app.add_middleware(
 # Hardcoded start and end locations
 ORIGIN = "East Side Dining, John S. Toll Drive, Stony Brook, NY 11794"
 DESTINATION = "SAC Plaza, Student Activities Center, Suite 220, Stony Brook, NY 11790"
-GOOGLE_MAPS_API_KEY = "AIzaSyAvyVfvVXEjsGEQHPIYP0HjPMN_BRhzPQg"  # Replace with your actual API key
+GOOGLE_MAPS_API_KEY = os.getenv("GOOGLE_MAPS_API_KEY") # Replace with your actual API key
 
 @app.get("/get_routes")
 def get_routes():

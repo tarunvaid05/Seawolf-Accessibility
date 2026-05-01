@@ -89,7 +89,7 @@
         fetch("best_path_polyline.json") 
           .then(response => response.json())
           .then(data => {
-            // data.encoded_polyline is the string from djikstra.py
+            // data.encoded_polyline is the string from dijkstra.py
             const decodedPath = google.maps.geometry.encoding.decodePath(
               data.encoded_polyline
             );
