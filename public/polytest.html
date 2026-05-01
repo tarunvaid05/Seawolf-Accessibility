@@ -108,10 +108,10 @@
 
         // campusPolygon.setMap(map);
         // Instead of using an encoded polyline, we now fetch and draw formatted data polylines.
-        //fetchFormattedData(map);
-        fetchStepsData(map);
+        fetchFormattedData(map);
+        //fetchStepsData(map);
         polyline.setMap(map)
-        // fetchWalkablePath(map);
+        //fetchWalkablePath(map);
       }
 
       // New function: fetch formatted data and draw its polylines
@@ -179,12 +179,12 @@
             });
 
             // Filter ways to only include those with at least one adjacent segment
-            const filteredWays = data.filter(way =>
-              way.refs.some(ref => refCounts[ref.id] > 1)
-            );
+            // const filteredWays = data.filter(way =>
+            //   way.refs.some(ref => refCounts[ref.id] > 1)
+            // );
 
             // Draw each filtered way as a polyline
-            filteredWays.forEach(way => {
+            ways.forEach(way => {
               const path = way.refs.map(ref => ({
                 lat: ref.lat / 1e9,
                 lng: ref.lon / 1e9,
