@@ -42,3 +42,6 @@ build/
 .DS_Store
 *.pem
 
+# Ignore parser
+./backend/parser
+
