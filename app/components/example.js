@@ -200,11 +200,10 @@ export default function Example() {
     if (!startLocation || !endLocation) return;
     try {
       console.log("Fetching directions for:", startLocation, endLocation);
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
       const response = await fetch(
-        `http://localhost:8000/api/directions?start=${encodeURIComponent(
-          startLocation
-        )}&end=${encodeURIComponent(endLocation)}`
-      );
+        `${backendUrl}/api/directions?start=${encodeURIComponent(startLocation)}&end=${encodeURIComponent(endLocation)}`
+      );      
       if (!response.ok) {
         console.error("Failed to fetch directions", await response.text());
         return;
