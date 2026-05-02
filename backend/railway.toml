@@ -6,7 +6,9 @@ rootDirectory = "backend"
 buildCommand = """
 curl -sSL https://install.python-poetry.org | python3 - && \
 export PATH="$HOME/.local/bin:$PATH" && \
-poetry install --no-root
+pip install --upgrade pip && \
+pip install poetry==1.3.1 && \
+poetry install --no-root --no-interaction --no-ansi
 """
 
 [deploy]
