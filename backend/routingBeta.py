@@ -84,7 +84,3 @@ def get_directions(start: str = Query(..., description="Start coordinate as 'lat
         }
     }
     return JSONResponse(content=response)
-
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
