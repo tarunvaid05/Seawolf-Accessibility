@@ -5,6 +5,11 @@ description = "Map for disabled people at stony that takes into account elevatio
 authors = [
     {name = "tarunvaid05",email = "tarunvaid05@gmail.com"}
 ]
+
+[tool.poetry]
+name = "hopperhacks25"
+version = "0.1.0"
+
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
