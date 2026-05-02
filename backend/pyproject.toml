@@ -2,9 +2,7 @@
 name = "hopperhacks25"
 version = "0.1.0"
 description = "Map for disabled people at stony that takes into account elevation + disability accesible routes"
-authors = [
-    {name = "tarunvaid05",email = "tarunvaid05@gmail.com"}
-]
+authors = ["tarunvaid05 tarunvaid05@gmail.com"]
 readme = "README.md"
 requires-python = ">=3.13"
 
