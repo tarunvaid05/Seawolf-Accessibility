@@ -2,6 +2,7 @@
 
 [build]
 builder = "NIXPACKS"
+rootDirectory = "app"
 buildCommand = "npm install && npm run build"
 
 [deploy]
