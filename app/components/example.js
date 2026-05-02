@@ -1,17 +1,16 @@
-//// filepath: /Users/tarun/CS/Projects/HopperHacks25/app/components/example.js
 "use client";
 
-import React, { useRef, useState, useCallback } from 'react';
+import React, { useRef, useState, useCallback, useEffect } from 'react';
 import {
   LoadScript,
   GoogleMap,
   Marker,
-  Polyline, // import Polyline
+  Polyline,
   DirectionsRenderer
 } from '@react-google-maps/api';
 import styles from './styles/example.module.css';
 
-const center = { lat: 40.902771, lng: -73.133850 }; // stony's coordinates
+const center = { lat: 40.910412, lng: -73.124705 }; // stony's coordinates
 
 // A minimal dark mode style array for the map.
 const darkMapStyles = [
@@ -97,24 +96,22 @@ const darkMapStyles = [
 
 export default function Example() {
   const mapRef = useRef(null);
+  const polylineRefs = useRef([]); // Stores polyline instances
+  const [mapKey, setMapKey] = useState(0); // We still update this if needed
   const [mapType, setMapType] = useState("roadmap");
   const [isDarkMode, setIsDarkMode] = useState(false);
-  
-  // For manual direction input (coordinates as "lat,lng")
+
   const [startLocation, setStartLocation] = useState("");
   const [endLocation, setEndLocation] = useState("");
-  // Track the currently active input field ("start" or "end")
   const [activeField, setActiveField] = useState(null);
-  
-  // For displaying markers
+
   const [selectedPoints, setSelectedPoints] = useState({ start: null, end: null });
-  // For storing directions from the backend (if needed)
   const [directionsResponse, setDirectionsResponse] = useState(null);
-  // For storing the decoded polyline route coordinates.
   const [routePath, setRoutePath] = useState([]);
 
   const onMapLoad = useCallback((map) => {
     mapRef.current = map;
+    console.log("Map loaded:", map);
   }, []);
 
   const toggleMapType = () => {
@@ -126,55 +123,96 @@ export default function Example() {
   };
 
   const toggleDarkMode = () => {
-    setIsDarkMode(prev => !prev);
+    setIsDarkMode((prev) => !prev);
   };
 
-  // When the user clicks on the map, update the active input's coordinate.
+  // Clear function for all polyline instances.
+  const clearAllPolylines = () => {
+    console.log("Clearing polyline instances:", polylineRefs.current.length);
+    polylineRefs.current.forEach((poly) => {
+      if (poly) {
+        poly.setMap(null);
+      }
+    });
+    polylineRefs.current = [];
+    setRoutePath([]);
+  };
+
+  // When a new start marker is placed, ensure old polylines are cleared.
+  useEffect(() => {
+    if (selectedPoints.start) {
+      console.log("New first marker placed, clearing any old polylines.");
+      clearAllPolylines();
+    }
+  }, [selectedPoints.start]);
+
   const handleMapClick = (e) => {
+    // Clear any overlays when the map is clicked.
+    setDirectionsResponse(null);
+    clearAllPolylines();
+
     const clickedCoord = { lat: e.latLng.lat(), lng: e.latLng.lng() };
     const coordStr = `${clickedCoord.lat.toFixed(6)},${clickedCoord.lng.toFixed(6)}`;
+    console.log("Map clicked. Coordinate:", clickedCoord, coordStr);
+
     if (activeField === "start") {
       setStartLocation(coordStr);
-      setSelectedPoints(prev => ({ ...prev, start: clickedCoord }));
+      setSelectedPoints((prev) => ({ ...prev, start: clickedCoord }));
     } else if (activeField === "end") {
       setEndLocation(coordStr);
-      setSelectedPoints(prev => ({ ...prev, end: clickedCoord }));
+      setSelectedPoints((prev) => ({ ...prev, end: clickedCoord }));
     } else {
       if (!selectedPoints.start) {
         setStartLocation(coordStr);
         setSelectedPoints({ start: clickedCoord, end: null });
       } else if (!selectedPoints.end) {
         setEndLocation(coordStr);
-        setSelectedPoints(prev => ({ ...prev, end: clickedCoord }));
+        setSelectedPoints((prev) => ({ ...prev, end: clickedCoord }));
       } else {
-        // Both are set; reset start.
+        // If both markers exist, treat this as resetting the start.
         setStartLocation(coordStr);
         setSelectedPoints({ start: clickedCoord, end: null });
         setEndLocation("");
       }
     }
-    // Clear any directions or polyline on coordinate change.
-    setDirectionsResponse(null);
-    setRoutePath([]);
   };
 
-  // Modify calculateRoute to decode the overview_polyline and set it as routePath.
+  const handleStartInputChange = (e) => {
+    setStartLocation(e.target.value);
+    setDirectionsResponse(null);
+    clearAllPolylines();
+  };
+
+  const handleEndInputChange = (e) => {
+    setEndLocation(e.target.value);
+    setDirectionsResponse(null);
+    clearAllPolylines();
+  };
+
   const calculateRoute = async () => {
+    console.log("calculateRoute called: clearing overlays");
+    // Clear any existing overlays
+    setDirectionsResponse(null);
+    clearAllPolylines();
+    // Optionally force a full remount of the map if needed:
+    setMapKey(prev => prev + 1);
+
     if (!startLocation || !endLocation) return;
     try {
+      console.log("Fetching directions for:", startLocation, endLocation);
       const response = await fetch(
-        `http://localhost:8000/api/directions?start=${encodeURIComponent(startLocation)}&end=${encodeURIComponent(endLocation)}`
+        `http://localhost:8000/api/directions?start=${encodeURIComponent(
+          startLocation
+        )}&end=${encodeURIComponent(endLocation)}`
       );
       if (!response.ok) {
         console.error("Failed to fetch directions", await response.text());
         return;
       }
       let data = await response.json();
-      // Wrap data in a routes array if not already.
       if (!data.routes || !Array.isArray(data.routes)) {
         data = { routes: [data] };
       }
-      // Convert bounds if they exist:
       if (
         data.routes[0] &&
         data.routes[0].bounds &&
@@ -189,26 +227,24 @@ export default function Example() {
           west: southwest.lng,
         };
       }
-      // Ensure request property exists.
       if (!data.request) {
         data.request = {
           travelMode: 'WALKING',
           origin: startLocation,
-          destination: endLocation
+          destination: endLocation,
         };
       }
       if (!data.geocoded_waypoints) {
         data.geocoded_waypoints = [];
       }
       console.log("Formatted directions object:", data);
-      // Optionally set the directions response if you still want to use DirectionsRenderer.
       setDirectionsResponse(data);
-
-      // Use the overview_polyline from the first route to draw the path.
       if (data.routes[0].overview_polyline && data.routes[0].overview_polyline.points) {
-        // Decode the polyline using the Google Maps geometry library.
-        const decodedPath = window.google.maps.geometry.encoding.decodePath(data.routes[0].overview_polyline.points);
+        const decodedPath = window.google.maps.geometry.encoding.decodePath(
+          data.routes[0].overview_polyline.points
+        );
         setRoutePath(decodedPath);
+        console.log("Decoded polyline path:", decodedPath);
       } else {
         console.error("No overview_polyline found in route data.");
       }
@@ -230,52 +266,68 @@ export default function Example() {
             placeholder="Start location"
             value={startLocation}
             onFocus={() => setActiveField("start")}
-            onChange={(e) => setStartLocation(e.target.value)}
+            onChange={handleStartInputChange}
           />
           <input
             type="text"
             placeholder="End location"
             value={endLocation}
             onFocus={() => setActiveField("end")}
-            onChange={(e) => setEndLocation(e.target.value)}
+            onChange={handleEndInputChange}
           />
           <button onClick={calculateRoute}>Get Directions</button>
         </div>
-        <LoadScript googleMapsApiKey={process.env.NEXT_PUBLIC_MAPS_KEY} libraries={["geometry"]}>
+        <LoadScript
+          googleMapsApiKey={process.env.NEXT_PUBLIC_MAPS_KEY}
+          libraries={["geometry"]}
+        >
           <GoogleMap
+            key={mapKey}
             onLoad={onMapLoad}
             onClick={handleMapClick}
-            mapContainerStyle={{ width: '100%', height: '100%' }}
+            mapContainerStyle={{ width: "100%", height: "100%" }}
             center={center}
-            zoom={15}
+            zoom={14.45}
             options={{
               mapTypeControl: false,
-              styles: isDarkMode ? darkMapStyles : []
+              styles: isDarkMode ? darkMapStyles : [],
+              minZoom: 14.2,
+              restriction: {
+                latLngBounds: {
+                  north: 40.942273,
+                  south: 40.876240,
+                  west: -73.196586,
+                  east: -73.050875,
+                },
+                strictBounds: true,
+              },
             }}
           >
-            <Marker position={center} />
             {selectedPoints.start && (
               <Marker position={selectedPoints.start} label="A" />
             )}
             {selectedPoints.end && (
               <Marker position={selectedPoints.end} label="B" />
             )}
-            {/* Render the polyline if available */}
             {routePath.length > 0 && (
               <Polyline
+                key={JSON.stringify(routePath)}
                 path={routePath}
+                onLoad={(polyline) => {
+                  polylineRefs.current.push(polyline);
+                }}
                 options={{
-                  strokeColor: '#FF0000',
+                  strokeColor: "#FF0000",
                   strokeOpacity: 0.8,
                   strokeWeight: 4,
                 }}
               />
             )}
-            {/* Optionally render the DirectionsRenderer if needed */}
             {directionsResponse && (
               <DirectionsRenderer
+                key={JSON.stringify(directionsResponse)}
                 options={{
-                  directions: directionsResponse
+                  directions: directionsResponse,
                 }}
               />
             )}
