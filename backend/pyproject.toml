@@ -25,6 +25,8 @@ geopy = "^2.4.1"
 joblib = "^1.4.2"
 scikit-learn = "^1.6.1"
 
+[tool.poetry.requires-plugins]
+poetry-plugin-export = ">=1.8"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
