@@ -1,26 +1,6 @@
-"$schema" = "https://railway.com/railway.schema.json"
-
 [build]
-builder = "NIXPACKS"
-rootDirectory = "backend"
-
-[build.env]
-NIXPACKS_PKGS = "python310Full"
-nixpacksPlan = { 
-  phases = { 
-    setup = {
-      # setup runs before install in Nixpacks
-      cmds = ["python -m ensurepip --upgrade"]
-    },
-    install = {
-      cmds = ["pip install --upgrade pip", "pip install -r requirements.txt"]
-    }
-  },
-  providers = ["python"]
-}
+builder = "Nixpacks"
+buildCommand = "pip install --upgrade pip && pip install -r requirements.txt"
 
 [deploy]
 startCommand = "uvicorn routingBeta:app --host 0.0.0.0 --port $PORT"
-healthcheckPath = "/api/directions"
-healthcheckTimeout = 300
-restartPolicyType = "ALWAYS"
