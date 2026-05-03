@@ -4,6 +4,9 @@
 builder = "NIXPACKS"
 rootDirectory = "backend"
 
+[build.env]
+NIXPACKS_PKGS = "python310Full"
+
 [deploy]
 startCommand = "uvicorn routingBeta:app --host 0.0.0.0 --port $PORT"
 healthcheckPath = "/api/directions"
