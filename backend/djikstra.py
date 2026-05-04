@@ -127,7 +127,7 @@ def get_connected_components(graph):
 
 def nearest_edges_by_component(P, graph, component_by_node):
     """
-    Finds the closest edge projection for P within each connected component.
+    Finds the best stair-aware edge projection for P within each connected component.
     """
     nearest = {}
 
@@ -149,21 +149,22 @@ def nearest_edges_by_component(P, graph, component_by_node):
                 B_lon = B["lon"] / 1e9
                 proj, _ = project_point_onto_segment(P, (A_lat, A_lon), (B_lat, B_lon))
                 d = haversine(P[0], P[1], proj[0], proj[1])
+                score = route_cost.compute_snap_cost(d, poly)
 
-                if component_id not in nearest or d < nearest[component_id]:
-                    nearest[component_id] = d
+                if component_id not in nearest or score < nearest[component_id]:
+                    nearest[component_id] = score
 
     return nearest
 
 def choose_snap_component(start, end, graph):
     """
     Chooses a connected component that can route both endpoints.
-    The selected component minimizes total snap distance for the two points.
+    The selected component minimizes stair-aware snap score for the two points.
     """
     component_by_node, component_sizes = get_connected_components(graph)
-    start_distances = nearest_edges_by_component(start, graph, component_by_node)
-    end_distances = nearest_edges_by_component(end, graph, component_by_node)
-    common_components = set(start_distances) & set(end_distances)
+    start_scores = nearest_edges_by_component(start, graph, component_by_node)
+    end_scores = nearest_edges_by_component(end, graph, component_by_node)
+    common_components = set(start_scores) & set(end_scores)
 
     if not common_components:
         return None, component_by_node, component_sizes
@@ -171,8 +172,8 @@ def choose_snap_component(start, end, graph):
     component_id = min(
         common_components,
         key=lambda comp: (
-            start_distances[comp] + end_distances[comp],
-            max(start_distances[comp], end_distances[comp]),
+            start_scores[comp] + end_scores[comp],
+            max(start_scores[comp], end_scores[comp]),
             -component_sizes[comp],
         ),
     )
@@ -245,7 +246,8 @@ def dijkstra(graph, start, goal):
     path.reverse()
     for i in range(1, len(path)):
         edges_in_path.append(edge_used[path[i]])
-    return dist[goal], path, edges_in_path
+    total_distance = sum(compute_polyline_distance(edge) for edge in edges_in_path)
+    return total_distance, path, edges_in_path
 
 def combine_polylines(polylines):
     """
@@ -299,14 +301,14 @@ def load_nodes():
 
 def snap_point(P, graph, nodes, allowed_nodes=None):
     """
-    Snaps point P (tuple (lat, lon) in degrees) onto the closest point on any edge in the graph.
+    Snaps point P (tuple (lat, lon) in degrees) onto the best point on an edge in the graph.
     The function iterates over each unique edge, finds the projection onto each segment,
-    and selects the one with minimum haversine distance.
+    and selects the one with the best stair-aware score.
     It then splits that edge by inserting a new node at the projected point,
     updating the graph (both directions) accordingly.
     Returns the new node's id.
     """
-    best_distance = float('inf')
+    best_score = float('inf')
     best_edge_info = None  # Will hold (u, v, poly, segment_index, t)
     # Iterate over unique edges (consider only u < v to avoid duplicates).
     for u in graph:
@@ -325,8 +327,9 @@ def snap_point(P, graph, nodes, allowed_nodes=None):
                     B_lon = B["lon"] / 1e9
                     proj, t = project_point_onto_segment(P, (A_lat, A_lon), (B_lat, B_lon))
                     d = haversine(P[0], P[1], proj[0], proj[1])
-                    if d < best_distance:
-                        best_distance = d
+                    score = route_cost.compute_snap_cost(d, poly)
+                    if score < best_score:
+                        best_score = score
                         best_edge_info = (u, v, poly, i, t)
     if best_edge_info is None:
         return None
