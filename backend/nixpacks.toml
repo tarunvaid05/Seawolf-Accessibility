@@ -1,8 +1,0 @@
-[phases.setup]
-nixPkgs = ["python3127", "pip"]
-
-[phases.build]
-cmds = ["pip install --upgrade pip"]
-
-[start]
-cmd = "uvicorn routingBeta:app --host 0.0.0.0 --port $PORT"
