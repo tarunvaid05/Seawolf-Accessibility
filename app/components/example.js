@@ -11,6 +11,7 @@ import {
 import styles from './styles/example.module.css';
 
 const center = { lat: 40.910412, lng: -73.124705 }; // stony's coordinates
+const googleMapsLibraries = ["geometry"];
 
 // A minimal dark mode style array for the map.
 const darkMapStyles = [
@@ -97,7 +98,6 @@ const darkMapStyles = [
 export default function Example() {
   const mapRef = useRef(null);
   const polylineRefs = useRef([]); // Stores polyline instances
-  const [mapKey, setMapKey] = useState(0); // We still update this if needed
   const [mapType, setMapType] = useState("roadmap");
   const [isDarkMode, setIsDarkMode] = useState(false);
 
@@ -194,8 +194,6 @@ export default function Example() {
     // Clear any existing overlays
     setDirectionsResponse(null);
     clearAllPolylines();
-    // Optionally force a full remount of the map if needed:
-    setMapKey(prev => prev + 1);
 
     if (!startLocation || !endLocation) return;
     try {
@@ -278,10 +276,9 @@ export default function Example() {
         </div>
         <LoadScript
           googleMapsApiKey={process.env.NEXT_PUBLIC_MAPS_KEY}
-          libraries={["geometry"]}
+          libraries={googleMapsLibraries}
         >
           <GoogleMap
-            key={mapKey}
             onLoad={onMapLoad}
             onClick={handleMapClick}
             mapContainerStyle={{ width: "100%", height: "100%" }}

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
-import json
+import copy
 import heapq
+import json
 import math
 import route_cost
 
@@ -86,6 +87,98 @@ def add_edge_to_graph(graph, u, v, poly, distance):
     """
     graph.setdefault(u, []).append((v, distance, poly))
 
+def clone_graph(graph, nodes):
+    """
+    Returns a mutable per-request copy of the cached routing graph.
+    snap_point mutates the graph by splitting edges, so requests must not share
+    the cached graph object returned by load_graph.
+    """
+    return copy.deepcopy(graph), nodes.copy()
+
+def get_connected_components(graph):
+    """
+    Computes connected components for the undirected graph representation.
+    Returns (component_by_node, component_sizes).
+    """
+    component_by_node = {}
+    component_sizes = {}
+    component_id = 0
+
+    for node in graph:
+        if node in component_by_node:
+            continue
+
+        stack = [node]
+        component_by_node[node] = component_id
+        size = 0
+
+        while stack:
+            current = stack.pop()
+            size += 1
+            for neighbor, _, _ in graph.get(current, []):
+                if neighbor not in component_by_node:
+                    component_by_node[neighbor] = component_id
+                    stack.append(neighbor)
+
+        component_sizes[component_id] = size
+        component_id += 1
+
+    return component_by_node, component_sizes
+
+def nearest_edges_by_component(P, graph, component_by_node):
+    """
+    Finds the closest edge projection for P within each connected component.
+    """
+    nearest = {}
+
+    for u in graph:
+        for v, _, poly in graph[u]:
+            if u >= v:
+                continue
+
+            component_id = component_by_node.get(u)
+            if component_id is None or component_by_node.get(v) != component_id:
+                continue
+
+            for i in range(len(poly) - 1):
+                A = poly[i]
+                B = poly[i+1]
+                A_lat = A["lat"] / 1e9
+                A_lon = A["lon"] / 1e9
+                B_lat = B["lat"] / 1e9
+                B_lon = B["lon"] / 1e9
+                proj, _ = project_point_onto_segment(P, (A_lat, A_lon), (B_lat, B_lon))
+                d = haversine(P[0], P[1], proj[0], proj[1])
+
+                if component_id not in nearest or d < nearest[component_id]:
+                    nearest[component_id] = d
+
+    return nearest
+
+def choose_snap_component(start, end, graph):
+    """
+    Chooses a connected component that can route both endpoints.
+    The selected component minimizes total snap distance for the two points.
+    """
+    component_by_node, component_sizes = get_connected_components(graph)
+    start_distances = nearest_edges_by_component(start, graph, component_by_node)
+    end_distances = nearest_edges_by_component(end, graph, component_by_node)
+    common_components = set(start_distances) & set(end_distances)
+
+    if not common_components:
+        return None, component_by_node, component_sizes
+
+    component_id = min(
+        common_components,
+        key=lambda comp: (
+            start_distances[comp] + end_distances[comp],
+            max(start_distances[comp], end_distances[comp]),
+            -component_sizes[comp],
+        ),
+    )
+
+    return component_id, component_by_node, component_sizes
+
 def load_graph():
     """
     Loads formatted_data.json and builds an undirected graph.
@@ -136,7 +229,6 @@ def dijkstra(graph, start, goal):
             continue
         for neighbor, weight, poly in graph[current]:
             alt = current_dist + weight + route_cost.compute_edge_cost(poly)
-            print(alt)
             if alt < dist[neighbor]:
                 dist[neighbor] = alt
                 previous[neighbor] = current
@@ -205,7 +297,7 @@ def load_nodes():
         nodes_list = json.load(f)
     return nodes_list
 
-def snap_point(P, graph, nodes):
+def snap_point(P, graph, nodes, allowed_nodes=None):
     """
     Snaps point P (tuple (lat, lon) in degrees) onto the closest point on any edge in the graph.
     The function iterates over each unique edge, finds the projection onto each segment,
@@ -218,7 +310,11 @@ def snap_point(P, graph, nodes):
     best_edge_info = None  # Will hold (u, v, poly, segment_index, t)
     # Iterate over unique edges (consider only u < v to avoid duplicates).
     for u in graph:
+        if allowed_nodes is not None and u not in allowed_nodes:
+            continue
         for (v, weight, poly) in graph[u]:
+            if allowed_nodes is not None and v not in allowed_nodes:
+                continue
             if u < v:
                 for i in range(len(poly) - 1):
                     A = poly[i]
@@ -247,7 +343,6 @@ def snap_point(P, graph, nodes):
     snapped_lat_int = round(snapped_lat * 1e9)
     snapped_lon_int = round(snapped_lon * 1e9)
     new_id = max(nodes.keys()) + 1 if nodes else 1
-    new_node = {"id": new_id, "lat": snapped_lat_int, "lon": snapped_lon_int}
     # Add new node to our nodes dictionary.
     nodes[new_id] = (snapped_lat, snapped_lon)
     # Split the original polyline into two segments.
