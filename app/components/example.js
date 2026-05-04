@@ -2,6 +2,7 @@
 
 import React, { useRef, useState, useCallback, useEffect } from 'react';
 import {
+  Autocomplete,
   LoadScript,
   GoogleMap,
   Marker,
@@ -11,7 +12,19 @@ import {
 import styles from './styles/example.module.css';
 
 const center = { lat: 40.910412, lng: -73.124705 }; // stony's coordinates
-const googleMapsLibraries = ["geometry"];
+const googleMapsLibraries = ["geometry", "places"];
+const campusBounds = {
+  north: 40.942273,
+  south: 40.876240,
+  west: -73.196586,
+  east: -73.050875,
+};
+const autocompleteOptions = {
+  bounds: campusBounds,
+  componentRestrictions: { country: "us" },
+  fields: ["formatted_address", "geometry", "name"],
+  strictBounds: true,
+};
 
 // A minimal dark mode style array for the map.
 const darkMapStyles = [
@@ -98,6 +111,8 @@ const darkMapStyles = [
 export default function Example() {
   const mapRef = useRef(null);
   const polylineRefs = useRef([]); // Stores polyline instances
+  const startAutocompleteRef = useRef(null);
+  const endAutocompleteRef = useRef(null);
   const [mapType, setMapType] = useState("roadmap");
   const [isDarkMode, setIsDarkMode] = useState(false);
 
@@ -174,6 +189,36 @@ export default function Example() {
         setSelectedPoints({ start: clickedCoord, end: null });
         setEndLocation("");
       }
+    }
+  };
+
+  const formatCoordinate = (coord) => `${coord.lat.toFixed(6)},${coord.lng.toFixed(6)}`;
+
+  const handlePlaceChanged = (field) => {
+    const autocomplete = field === "start" ? startAutocompleteRef.current : endAutocompleteRef.current;
+    if (!autocomplete) return;
+
+    const place = autocomplete.getPlace();
+    if (!place.geometry || !place.geometry.location) {
+      console.warn("Selected place does not include geometry:", place);
+      return;
+    }
+
+    setDirectionsResponse(null);
+    clearAllPolylines();
+
+    const selectedCoord = {
+      lat: place.geometry.location.lat(),
+      lng: place.geometry.location.lng(),
+    };
+    const coordStr = formatCoordinate(selectedCoord);
+
+    if (field === "start") {
+      setStartLocation(coordStr);
+      setSelectedPoints((prev) => ({ ...prev, start: selectedCoord }));
+    } else {
+      setEndLocation(coordStr);
+      setSelectedPoints((prev) => ({ ...prev, end: selectedCoord }));
     }
   };
 
@@ -257,27 +302,43 @@ export default function Example() {
         Your browser does not support the video tag.
       </video>
       <div className={styles.mapContainer}>
-        <div className={styles.directionsInput}>
-          <input
-            type="text"
-            placeholder="Start location"
-            value={startLocation}
-            onFocus={() => setActiveField("start")}
-            onChange={handleStartInputChange}
-          />
-          <input
-            type="text"
-            placeholder="End location"
-            value={endLocation}
-            onFocus={() => setActiveField("end")}
-            onChange={handleEndInputChange}
-          />
-          <button onClick={calculateRoute}>Get Directions</button>
-        </div>
         <LoadScript
           googleMapsApiKey={process.env.NEXT_PUBLIC_MAPS_KEY}
           libraries={googleMapsLibraries}
         >
+          <div className={styles.directionsInput}>
+            <Autocomplete
+              onLoad={(autocomplete) => {
+                startAutocompleteRef.current = autocomplete;
+              }}
+              onPlaceChanged={() => handlePlaceChanged("start")}
+              options={autocompleteOptions}
+            >
+              <input
+                type="text"
+                placeholder="Start location"
+                value={startLocation}
+                onFocus={() => setActiveField("start")}
+                onChange={handleStartInputChange}
+              />
+            </Autocomplete>
+            <Autocomplete
+              onLoad={(autocomplete) => {
+                endAutocompleteRef.current = autocomplete;
+              }}
+              onPlaceChanged={() => handlePlaceChanged("end")}
+              options={autocompleteOptions}
+            >
+              <input
+                type="text"
+                placeholder="End location"
+                value={endLocation}
+                onFocus={() => setActiveField("end")}
+                onChange={handleEndInputChange}
+              />
+            </Autocomplete>
+            <button onClick={calculateRoute}>Get Directions</button>
+          </div>
           <GoogleMap
             onLoad={onMapLoad}
             onClick={handleMapClick}
@@ -289,12 +350,7 @@ export default function Example() {
               styles: isDarkMode ? darkMapStyles : [],
               minZoom: 14.2,
               restriction: {
-                latLngBounds: {
-                  north: 40.942273,
-                  south: 40.876240,
-                  west: -73.196586,
-                  east: -73.050875,
-                },
+                latLngBounds: campusBounds,
                 strictBounds: true,
               },
             }}
