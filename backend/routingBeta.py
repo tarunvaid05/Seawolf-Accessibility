@@ -18,6 +18,58 @@ from djikstra import (
 
 app = FastAPI()
 
+WANG_CENTER_BOUNDS = {
+    "north": 40.91625,
+    "south": 40.91565,
+    "west": -73.12005,
+    "east": -73.11925,
+}
+WANG_CENTER_ENTRANCE = {"lat": 40.915892, "lon": -73.119770}
+
+
+def is_in_bounds(coords, bounds):
+    lat, lon = coords
+    return bounds["south"] <= lat <= bounds["north"] and bounds["west"] <= lon <= bounds["east"]
+
+
+def haversine_distance(start, end):
+    radius = 6371000
+    start_lat, start_lon = start
+    end_lat, end_lon = end
+    phi1 = math.radians(start_lat)
+    phi2 = math.radians(end_lat)
+    dphi = math.radians(end_lat - start_lat)
+    dlambda = math.radians(end_lon - start_lon)
+    a = (
+        math.sin(dphi / 2) ** 2
+        + math.cos(phi1) * math.cos(phi2) * math.sin(dlambda / 2) ** 2
+    )
+    return radius * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
+
+def append_known_destination_extensions(points, start_coords, end_coords):
+    total_extra_distance = 0.0
+
+    if is_in_bounds(start_coords, WANG_CENTER_BOUNDS):
+        start_entrance = WANG_CENTER_ENTRANCE.copy()
+        first_point = points[0]
+        total_extra_distance += haversine_distance(
+            (start_entrance["lat"], start_entrance["lon"]),
+            (first_point["lat"], first_point["lon"]),
+        )
+        points.insert(0, start_entrance)
+
+    if is_in_bounds(end_coords, WANG_CENTER_BOUNDS):
+        end_entrance = WANG_CENTER_ENTRANCE.copy()
+        last_point = points[-1]
+        total_extra_distance += haversine_distance(
+            (last_point["lat"], last_point["lon"]),
+            (end_entrance["lat"], end_entrance["lon"]),
+        )
+        points.append(end_entrance)
+
+    return total_extra_distance
+
 # Allow CORS so your frontend can access the API.
 app.add_middleware(
     CORSMiddleware,
@@ -80,6 +132,7 @@ def get_directions(start: str = Query(..., description="Start coordinate as 'lat
     
     # Convert each vertex dictionary to degrees.
     points = [{"lat": pt["lat"] / 1e9, "lon": pt["lon"] / 1e9} for pt in full_polyline]
+    total_distance += append_known_destination_extensions(points, start_coords, end_coords)
     encoded = encode_polyline(points)
     
     # Build a mock Directions response that the frontend can work with.
