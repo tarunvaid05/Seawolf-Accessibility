@@ -9,6 +9,43 @@ import route_cost
 GRAPH_CACHE = None
 NODES_CACHE = None
 
+CAMPUS_LAT_BOUNDS = (40.0, 41.0)
+CAMPUS_LON_BOUNDS = (-74.0, -72.0)
+COORD_SCALE = 1e9
+REPAIRED_COORD_EDGE_PENALTY = 25.0
+
+def is_supported_coord(lat, lon):
+    return (
+        CAMPUS_LAT_BOUNDS[0] <= lat <= CAMPUS_LAT_BOUNDS[1]
+        and CAMPUS_LON_BOUNDS[0] <= lon <= CAMPUS_LON_BOUNDS[1]
+    )
+
+def normalize_scaled_point(point):
+    normalized = point.copy()
+    if needs_scale_repair(normalized):
+        normalized["lat"] *= 100
+        normalized["lon"] *= 100
+
+    return normalized
+
+def needs_scale_repair(point):
+    lat = point["lat"] / COORD_SCALE
+    lon = point["lon"] / COORD_SCALE
+    if is_supported_coord(lat, lon):
+        return False
+
+    # Some generated ways are accidentally stored at 1e7 scale instead of 1e9.
+    repaired_lat = point["lat"] * 100
+    repaired_lon = point["lon"] * 100
+    return is_supported_coord(repaired_lat / COORD_SCALE, repaired_lon / COORD_SCALE)
+
+def iter_segment_points(segments):
+    for seg in segments:
+        for edge in seg["edges"]:
+            yield edge["start"]
+            yield edge["end"]
+            yield from edge["polyline"]
+
 def haversine(lat1, lon1, lat2, lon2):
     """
     Compute the haversine distance (in meters) between two points given in degrees.
@@ -193,21 +230,58 @@ def load_graph():
         return GRAPH_CACHE, NODES_CACHE
     with open("formatted_data.json", "r") as f:
         segments = json.load(f)
+    max_node_id = max((point["id"] for point in iter_segment_points(segments)), default=0)
+    next_synthetic_node_id = max_node_id + 1
+    primary_coord_by_node_id = {}
+    synthetic_id_by_coord = {}
+
+    def normalize_graph_point(point):
+        nonlocal next_synthetic_node_id
+
+        normalized = normalize_scaled_point(point)
+        original_id = normalized["id"]
+        coord = (normalized["lat"], normalized["lon"])
+        primary_coord = primary_coord_by_node_id.get(original_id)
+
+        if primary_coord is None:
+            primary_coord_by_node_id[original_id] = coord
+            return normalized
+
+        if primary_coord == coord:
+            return normalized
+
+        synthetic_key = (original_id, coord)
+        synthetic_id = synthetic_id_by_coord.get(synthetic_key)
+        if synthetic_id is None:
+            synthetic_id = next_synthetic_node_id
+            synthetic_id_by_coord[synthetic_key] = synthetic_id
+            next_synthetic_node_id += 1
+
+        normalized["id"] = synthetic_id
+        return normalized
+
     graph = {}   # node_id -> list of (neighbor_id, distance, polyline)
     nodes = {}   # node_id -> (lat, lon) in degrees
     for seg in segments:
         for edge in seg["edges"]:
-            start = edge["start"]
-            end = edge["end"]
+            raw_points = [edge["start"], edge["end"], *edge["polyline"]]
+            has_repaired_coord = any(needs_scale_repair(point) for point in raw_points)
+            start = normalize_graph_point(edge["start"])
+            end = normalize_graph_point(edge["end"])
+            polyline = [normalize_graph_point(point) for point in edge["polyline"]]
             start_id = start["id"]
             end_id = end["id"]
-            d = edge["distance"]
-            if start_id not in nodes:
-                nodes[start_id] = (start["lat"] / 1e9, start["lon"] / 1e9)
-            if end_id not in nodes:
-                nodes[end_id] = (end["lat"] / 1e9, end["lon"] / 1e9)
-            graph.setdefault(start_id, []).append((end_id, d, edge["polyline"]))
-            graph.setdefault(end_id, []).append((start_id, d, list(reversed(edge["polyline"]))))
+            polyline[0] = start
+            polyline[-1] = end
+            d = compute_polyline_distance(polyline)
+            if has_repaired_coord:
+                d += REPAIRED_COORD_EDGE_PENALTY
+            for point in polyline:
+                point_id = point["id"]
+                if point_id not in nodes:
+                    nodes[point_id] = (point["lat"] / 1e9, point["lon"] / 1e9)
+            graph.setdefault(start_id, []).append((end_id, d, polyline))
+            graph.setdefault(end_id, []).append((start_id, d, list(reversed(polyline))))
     GRAPH_CACHE = graph
     NODES_CACHE = nodes
     return graph, nodes
