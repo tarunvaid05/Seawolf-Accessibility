@@ -6,7 +6,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from datetime import datetime
 # Import methods from djikstra.py
-from djikstra import load_graph, snap_point, dijkstra, combine_polylines, encode_polyline
+from djikstra import (
+    choose_snap_component,
+    clone_graph,
+    load_graph,
+    snap_point,
+    dijkstra,
+    combine_polylines,
+    encode_polyline,
+)
 
 app = FastAPI()
 
@@ -37,13 +45,26 @@ def get_directions(start: str = Query(..., description="Start coordinate as 'lat
 
     # Load the routing graph and nodes using the cached load_graph.
     try:
-        graph, graph_nodes = load_graph()
+        base_graph, base_nodes = load_graph()
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to load routing data") from e
 
-    # Snap the provided start and end onto the graph.
-    origin_snapped = snap_point(start_coords, graph, graph_nodes)
-    destination_snapped = snap_point(end_coords, graph, graph_nodes)
+    component_id, component_by_node, _ = choose_snap_component(start_coords, end_coords, base_graph)
+    if component_id is None:
+        raise HTTPException(status_code=404, detail="Could not find a connected routing component for the provided coordinates.")
+
+    graph, graph_nodes = clone_graph(base_graph, base_nodes)
+    allowed_nodes = {
+        node
+        for node, node_component_id in component_by_node.items()
+        if node_component_id == component_id
+    }
+
+    # Snap both points within the same connected component so Dijkstra can route between them.
+    origin_snapped = snap_point(start_coords, graph, graph_nodes, allowed_nodes=allowed_nodes)
+    if origin_snapped is not None:
+        allowed_nodes.add(origin_snapped)
+    destination_snapped = snap_point(end_coords, graph, graph_nodes, allowed_nodes=allowed_nodes)
     if origin_snapped is None or destination_snapped is None:
         raise HTTPException(status_code=404, detail="Could not snap provided coordinates onto the routing graph.")
         
