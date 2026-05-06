@@ -20,11 +20,11 @@ app = FastAPI()
 
 WANG_CENTER_BOUNDS = {
     "north": 40.91625,
-    "south": 40.91565,
-    "west": -73.12005,
+    "south": 40.91555,
+    "west": -73.12060,
     "east": -73.11925,
 }
-WANG_CENTER_ENTRANCE = {"lat": 40.915892, "lon": -73.119770}
+WANG_CENTER_ENTRANCE = {"lat": 40.915646, "lon": -73.120485}
 
 
 def is_in_bounds(coords, bounds):
@@ -70,6 +70,12 @@ def append_known_destination_extensions(points, start_coords, end_coords):
 
     return total_extra_distance
 
+
+def resolve_known_destination(coords):
+    if is_in_bounds(coords, WANG_CENTER_BOUNDS):
+        return WANG_CENTER_ENTRANCE["lat"], WANG_CENTER_ENTRANCE["lon"]
+    return coords
+
 # Allow CORS so your frontend can access the API.
 app.add_middleware(
     CORSMiddleware,
@@ -101,7 +107,10 @@ def get_directions(start: str = Query(..., description="Start coordinate as 'lat
     except Exception as e:
         raise HTTPException(status_code=500, detail="Failed to load routing data") from e
 
-    component_id, component_by_node, _ = choose_snap_component(start_coords, end_coords, base_graph)
+    routing_start_coords = resolve_known_destination(start_coords)
+    routing_end_coords = resolve_known_destination(end_coords)
+
+    component_id, component_by_node, _ = choose_snap_component(routing_start_coords, routing_end_coords, base_graph)
     if component_id is None:
         raise HTTPException(status_code=404, detail="Could not find a connected routing component for the provided coordinates.")
 
@@ -113,10 +122,10 @@ def get_directions(start: str = Query(..., description="Start coordinate as 'lat
     }
 
     # Snap both points within the same connected component so Dijkstra can route between them.
-    origin_snapped = snap_point(start_coords, graph, graph_nodes, allowed_nodes=allowed_nodes)
+    origin_snapped = snap_point(routing_start_coords, graph, graph_nodes, allowed_nodes=allowed_nodes)
     if origin_snapped is not None:
         allowed_nodes.add(origin_snapped)
-    destination_snapped = snap_point(end_coords, graph, graph_nodes, allowed_nodes=allowed_nodes)
+    destination_snapped = snap_point(routing_end_coords, graph, graph_nodes, allowed_nodes=allowed_nodes)
     if origin_snapped is None or destination_snapped is None:
         raise HTTPException(status_code=404, detail="Could not snap provided coordinates onto the routing graph.")
         
